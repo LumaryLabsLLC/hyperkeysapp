@@ -60,6 +60,17 @@ public struct BindingPopover: View {
                     selectedApps = [app]
                 }
             }
+            // Pre-populate menu item target
+            if case .triggerMenuItem(let appBundleId, _) = currentBinding?.action {
+                menuTargetBundleId = appBundleId
+                if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == appBundleId }) {
+                    menuTargetName = app.localizedName ?? appBundleId
+                    menuTargetPid = app.processIdentifier
+                    menuTopLevel = MenuBarReader.readMenuItems(forPID: app.processIdentifier)
+                } else {
+                    menuTargetName = appBundleId
+                }
+            }
         }
         .alert("Name this group", isPresented: $showingGroupName) {
             TextField("e.g. Work, Music, Design", text: $groupName)
@@ -315,23 +326,147 @@ public struct BindingPopover: View {
         }
     }
 
-    // MARK: - Menu Item (placeholder)
+    // MARK: - Menu Item Picker
 
-    private var menuItemPlaceholder: some View {
-        VStack {
-            Spacer()
-            Image(systemName: "menubar.rectangle")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text("Menu Item Binding")
-                .font(.headline)
-            Text("Select the frontmost app's menu item to trigger.\nActivate the target app first, then click here.")
+    private var menuItemPicker: some View {
+        VStack(spacing: 0) {
+            if menuTargetBundleId != nil {
+                menuBrowser
+            } else {
+                runningAppPicker
+            }
+        }
+    }
+
+    private var runningAppPicker: some View {
+        VStack(spacing: 0) {
+            Text("Select a running app to browse its menus")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Spacer()
+                .padding(.top, 8)
+
+            List {
+                ForEach(runningAppsForMenu, id: \.processIdentifier) { app in
+                    Button {
+                        selectMenuApp(app)
+                    } label: {
+                        HStack {
+                            if let icon = app.icon {
+                                Image(nsImage: icon)
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                            }
+                            Text(app.localizedName ?? app.bundleIdentifier ?? "Unknown")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
-        .padding()
+    }
+
+    private var runningAppsForMenu: [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
+            .sorted {
+                ($0.localizedName ?? "").localizedCaseInsensitiveCompare($1.localizedName ?? "") == .orderedAscending
+            }
+    }
+
+    private func selectMenuApp(_ app: NSRunningApplication) {
+        menuTargetBundleId = app.bundleIdentifier
+        menuTargetName = app.localizedName ?? app.bundleIdentifier ?? "Unknown"
+        menuTargetPid = app.processIdentifier
+        menuTopLevel = MenuBarReader.readMenuItems(forPID: app.processIdentifier)
+        menuNavStack = []
+        menuNavTitles = []
+    }
+
+    private var menuBrowser: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button {
+                    if menuNavStack.isEmpty {
+                        menuTargetBundleId = nil
+                        menuTopLevel = []
+                    } else {
+                        menuNavStack.removeLast()
+                        menuNavTitles.removeLast()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text(menuNavTitles.last ?? menuTargetName)
+                            .lineLimit(1)
+                    }
+                    .font(.callout)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            let currentItems = menuNavStack.last ?? menuTopLevel
+
+            if currentItems.isEmpty {
+                VStack {
+                    Spacer()
+                    Text("No menu items found")
+                        .foregroundStyle(.secondary)
+                    Text("Make sure the app is running and in the foreground.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            } else {
+                List {
+                    ForEach(currentItems, id: \.path) { item in
+                        Button {
+                            if item.children.isEmpty {
+                                bindMenuItem(item)
+                            } else {
+                                menuNavStack.append(item.children)
+                                menuNavTitles.append(item.title)
+                            }
+                        } label: {
+                            HStack {
+                                Text(item.title)
+                                    .foregroundStyle(item.isEnabled ? .primary : .secondary)
+                                Spacer()
+                                if !item.children.isEmpty {
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!item.isEnabled && item.children.isEmpty)
+                    }
+                }
+            }
+        }
+    }
+
+    private func bindMenuItem(_ item: MenuItemInfo) {
+        guard let bundleId = menuTargetBundleId else { return }
+        let binding = KeyBinding(
+            keyCode: keyCode,
+            action: .triggerMenuItem(appBundleId: bundleId, menuPath: item.path)
+        )
+        if let groupId = bindingStore.activeGroupId {
+            bindingStore.setBindingInGroup(groupId: groupId, binding: binding)
+        } else {
+            bindingStore.setBinding(binding)
+        }
+        onDismiss()
     }
 
     // MARK: - Helpers

@@ -36,7 +36,7 @@ let package = Package(
         // Binding models, store, persistence, action executor
         .target(
             name: "KeyBindings",
-            dependencies: ["Shared", "AppSwitcher", "ContextEngine", "WindowEngine"]
+            dependencies: ["Shared", "EventEngine", "AppSwitcher", "ContextEngine", "WindowEngine"]
         ),
 
         // App launch/focus, app groups
