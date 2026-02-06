@@ -68,8 +68,8 @@ public struct KeyView: View {
             if definition.label.contains("\n") {
                 let parts = definition.label.split(separator: "\n", maxSplits: 1)
                 if isTwoLineModifier {
-                    // Modifier key: symbol top-left, text bottom-left
-                    VStack(alignment: .leading, spacing: 0) {
+                    // Modifier key: symbol top-right, text bottom-right
+                    VStack(alignment: .trailing, spacing: 0) {
                         Text(parts.first ?? "")
                             .font(.system(size: keySize * 0.2, design: .rounded))
                             .foregroundStyle(isHyperKey ? .white.opacity(0.7) : .secondary)
@@ -80,7 +80,7 @@ public struct KeyView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                 } else {
                     // Number row: shifted char top, main char bottom
                     VStack(spacing: 0) {
@@ -95,7 +95,7 @@ public struct KeyView: View {
             } else if isTextLabel {
                 // Text key: right-aligned, smaller text (delete, return, shift, etc.)
                 // Exception: "tab" and "caps lock" stay left-aligned
-                let alignRight = definition.label != "tab" && definition.label != "caps lock"
+                let alignRight = definition.label != "tab" && definition.label != "caps lock" && definition.label != "shift"
                 VStack(alignment: alignRight ? .trailing : .leading, spacing: 0) {
                     Spacer(minLength: 0)
                     Text(definition.label)
