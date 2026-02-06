@@ -17,6 +17,11 @@ CURRENT_PROJECT_VERSION = 1
 MACOSX_DEPLOYMENT_TARGET = 15.0
 
 // ==========================================
+// App Icon
+// ==========================================
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+
+// ==========================================
 // Info PLIST
 // ==========================================
 GENERATE_INFOPLIST_FILE = YES
