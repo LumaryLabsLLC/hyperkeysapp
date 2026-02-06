@@ -16,7 +16,7 @@ A macOS menu bar app that turns any key into a **Hyper Key** — giving you inst
 
 ## How It Works
 
-HyperKeys remaps a single key (default: backtick `` ` ``) into a **Hyper Key**. Quick-tap it and the original character still types. Hold it down and press any other key to trigger a custom action.
+HyperKeys remaps a single key (default: **Caps Lock**) into a **Hyper Key**. Quick-tap it and the original character still types. Hold it down and press any other key to trigger a custom action.
 
 ## Features
 
@@ -46,7 +46,7 @@ Create multiple binding profiles in the **Profiles** tab. Switch between them fr
 
 ### Changing the Hyper Key
 
-Go to **Settings → Hyper Key** and click **Change**, then press the key you want to use. Popular choices: Caps Lock (remap via macOS settings first), backtick, or right Option.
+Go to **Settings → Hyper Key** and click **Change**, then press the key you want to use. Popular choices: Caps Lock (default), backtick, or right Option.
 
 ### Double-Tap
 
