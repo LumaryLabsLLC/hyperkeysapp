@@ -1,9 +1,14 @@
 import AppKit
+import EventEngine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Toggle dock icon visibility. When `show` is true, the app appears in the Dock.
     static func setDockIconVisible(_ show: Bool) {
         NSApp.setActivationPolicy(show ? .regular : .accessory)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        CapsLockRemapper.disable()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

@@ -152,7 +152,9 @@ struct GeneralSettingsView: View {
         }
         .background(isCapturingHyperKey ? HyperKeyCaptureView(onCapture: { keyCode in
             isCapturingHyperKey = false
-            if let kc = KeyCode(rawValue: keyCode) {
+            // When CapsLock→F18 remap is active, pressing CapsLock arrives as F18
+            let effectiveCode = keyCode == KeyCode.f18.rawValue ? KeyCode.capsLock.rawValue : keyCode
+            if let kc = KeyCode(rawValue: effectiveCode) {
                 onHyperKeyChanged?(kc)
             }
         }) : nil)
@@ -218,5 +220,12 @@ private class KeyCaptureNSView: NSView {
 
     override func keyDown(with event: NSEvent) {
         onCapture(event.keyCode)
+    }
+
+    override func flagsChanged(with event: NSEvent) {
+        // Capture Caps Lock when hidutil remap is not active
+        if event.keyCode == KeyCode.capsLock.rawValue {
+            onCapture(event.keyCode)
+        }
     }
 }

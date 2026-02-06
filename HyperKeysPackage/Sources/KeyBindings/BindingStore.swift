@@ -8,7 +8,7 @@ public final class BindingStore {
     public var bindings: [KeyBinding] = []
     public var actionGroups: [ActionGroup] = []
     public var activeGroupId: UUID?
-    public var hyperKeyCode: KeyCode = .tab
+    public var hyperKeyCode: KeyCode = .capsLock
 
     private let bindingsFile = "bindings.json"
     private let groupsFile = "groups.json"
@@ -112,6 +112,6 @@ public final class BindingStore {
         bindings = (try? Persistence.load([KeyBinding].self, from: bindingsFile)) ?? []
         actionGroups = (try? Persistence.load([ActionGroup].self, from: groupsFile)) ?? []
         activeGroupId = try? Persistence.load(UUID.self, from: activeGroupFile)
-        hyperKeyCode = (try? Persistence.load(KeyCode.self, from: hyperKeyFile)) ?? .tab
+        hyperKeyCode = (try? Persistence.load(KeyCode.self, from: hyperKeyFile)) ?? .capsLock
     }
 }

@@ -49,7 +49,19 @@ public final class AppState {
         actionExecutor = executor
 
         let manager = EventTapManager()
-        manager.engine.hyperKeyCode = bindingStore.hyperKeyCode.rawValue
+
+        // Caps Lock is remapped to F18 via hidutil at the IOKit level,
+        // so the engine listens for F18 while the UI shows Caps Lock.
+        let hyperKey = bindingStore.hyperKeyCode
+        if hyperKey == .capsLock {
+            CapsLockRemapper.enable()
+            manager.engine.hyperKeyCode = KeyCode.f18.rawValue
+            manager.engine.logicalHyperKey = .capsLock
+        } else {
+            CapsLockRemapper.disable()
+            manager.engine.hyperKeyCode = hyperKey.rawValue
+            manager.engine.logicalHyperKey = hyperKey
+        }
         manager.engine.onHyperKeyActivated = { [weak executor] keyCode in
             Task { @MainActor in
                 executor?.execute(keyCode: keyCode)
@@ -82,13 +94,22 @@ public final class AppState {
     }
 
     func stopEventTap() {
+        CapsLockRemapper.disable()
         eventTapManager?.stop()
         eventTapManager = nil
     }
 
     func updateHyperKey(_ keyCode: KeyCode) {
         bindingStore.setHyperKey(keyCode)
-        eventTapManager?.engine.hyperKeyCode = keyCode.rawValue
+        if keyCode == .capsLock {
+            CapsLockRemapper.enable()
+            eventTapManager?.engine.hyperKeyCode = KeyCode.f18.rawValue
+            eventTapManager?.engine.logicalHyperKey = .capsLock
+        } else {
+            CapsLockRemapper.disable()
+            eventTapManager?.engine.hyperKeyCode = keyCode.rawValue
+            eventTapManager?.engine.logicalHyperKey = keyCode
+        }
     }
 
 }

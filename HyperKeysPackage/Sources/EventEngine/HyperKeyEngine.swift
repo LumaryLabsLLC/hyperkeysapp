@@ -37,7 +37,12 @@ public final class HyperKeyEngine: @unchecked Sendable {
     private let doubleTapTimeout: CFAbsoluteTime = 0.3 // 300ms
     private var state: State = .idle
     private var doubleTapTimer: DispatchWorkItem?
-    public var hyperKeyCode: UInt16 = KeyCode.tab.rawValue
+    /// The actual keyCode the event tap listens for.
+    /// When the user picks Caps Lock, we remap it to F18 via hidutil
+    /// and listen for F18 instead.
+    public var hyperKeyCode: UInt16 = KeyCode.f18.rawValue
+    /// The user-facing hyper key choice (may be .capsLock).
+    public var logicalHyperKey: KeyCode = .capsLock
     public var onHyperKeyActivated: HyperKeyAction?
     public var onDoubleTap: (@Sendable () -> Void)?
 

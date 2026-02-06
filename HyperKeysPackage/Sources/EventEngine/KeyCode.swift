@@ -55,12 +55,14 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
     case grave = 0x32
 
     // Special
+    case capsLock = 0x39
     case tab = 0x30
     case space = 0x31
     case returnKey = 0x24
     case delete = 0x33
     case escape = 0x35
     case forwardDelete = 0x75
+    case f18 = 0x4F
 
     // Arrows
     case leftArrow = 0x7B
@@ -131,12 +133,14 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
         case .period: "."
         case .slash: "/"
         case .grave: "`"
+        case .capsLock: "⇪"
         case .tab: "⇥"
         case .space: "Space"
         case .returnKey: "⏎"
         case .delete: "⌫"
         case .escape: "⎋"
         case .forwardDelete: "⌦"
+        case .f18: "F18"
         case .leftArrow: "←"
         case .rightArrow: "→"
         case .downArrow: "↓"
