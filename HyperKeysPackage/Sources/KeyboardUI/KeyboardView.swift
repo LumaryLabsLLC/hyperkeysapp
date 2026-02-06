@@ -1,5 +1,8 @@
+import AppKit
+import AppSwitcher
 import EventEngine
 import KeyBindings
+import Shared
 import SwiftUI
 
 public struct KeyboardView: View {
@@ -78,10 +81,12 @@ public struct KeyboardView: View {
         let kc = key.keyCode
         let isHyper = kc == bindingStore.hyperKeyCode
         let binding = kc.flatMap { isHyper ? nil : bindingStore.binding(for: $0) }
+        let icons = binding.map { appIcons(for: $0.action) } ?? []
 
         return KeyView(
             definition: key,
             binding: binding,
+            appIcons: icons,
             isSelected: kc != nil && kc == selectedKeyCode,
             isHyperKey: isHyper,
             keySize: keySize,
@@ -101,5 +106,28 @@ public struct KeyboardView: View {
                 }
             } : nil
         )
+    }
+
+    private func appIcons(for action: BoundAction) -> [NSImage] {
+        switch action {
+        case .launchApp(let bundleId, _):
+            if let icon = iconForBundleId(bundleId) {
+                return [icon]
+            }
+            return []
+        case .showAppGroup(let groupId):
+            let groups = (try? Persistence.load([AppGroup].self, from: "appGroups.json")) ?? []
+            guard let group = groups.first(where: { $0.id == groupId }) else { return [] }
+            return group.appBundleIdentifiers.compactMap { iconForBundleId($0) }
+        default:
+            return []
+        }
+    }
+
+    private func iconForBundleId(_ bundleId: String) -> NSImage? {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else {
+            return nil
+        }
+        return NSWorkspace.shared.icon(forFile: url.path)
     }
 }

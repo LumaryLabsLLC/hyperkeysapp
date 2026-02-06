@@ -1,3 +1,4 @@
+import AppKit
 import EventEngine
 import KeyBindings
 import SwiftUI
@@ -5,6 +6,7 @@ import SwiftUI
 public struct KeyView: View {
     let definition: KeyDefinition
     let binding: KeyBinding?
+    let appIcons: [NSImage]
     let isSelected: Bool
     let isHyperKey: Bool
     let keySize: CGFloat
@@ -14,6 +16,7 @@ public struct KeyView: View {
     public init(
         definition: KeyDefinition,
         binding: KeyBinding?,
+        appIcons: [NSImage] = [],
         isSelected: Bool,
         isHyperKey: Bool = false,
         keySize: CGFloat = 48,
@@ -22,6 +25,7 @@ public struct KeyView: View {
     ) {
         self.definition = definition
         self.binding = binding
+        self.appIcons = appIcons
         self.isSelected = isSelected
         self.isHyperKey = isHyperKey
         self.keySize = keySize
@@ -116,8 +120,14 @@ public struct KeyView: View {
                     .minimumScaleFactor(0.5)
             }
 
-            // Binding label overlay at bottom center
-            if let binding {
+            // Binding overlay at bottom center
+            if !appIcons.isEmpty {
+                VStack {
+                    Spacer()
+                    appIconStack
+                        .padding(.bottom, 2)
+                }
+            } else if let binding {
                 VStack {
                     Spacer()
                     Text(actionLabel(binding.action))
@@ -141,6 +151,27 @@ public struct KeyView: View {
                 } label: {
                     Label("Remove Shortcut", systemImage: "trash")
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var appIconStack: some View {
+        let icons = Array(appIcons.prefix(3))
+        let single = icons.count == 1
+        let iconSize = single ? keySize * 0.34 : keySize * 0.24
+        let overlap = iconSize * 0.35
+
+        ZStack {
+            ForEach(Array(icons.enumerated()), id: \.offset) { index, icon in
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: iconSize, height: iconSize)
+                    .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.2))
+                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                    .offset(x: single ? 0 : CGFloat(index) * overlap - overlap * CGFloat(icons.count - 1) / 2)
             }
         }
     }
