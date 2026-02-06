@@ -38,7 +38,6 @@ struct SettingsContentView: View {
         TabView(selection: $selectedTab) {
             Tab("Keyboard", systemImage: "keyboard", value: 0) {
                 KeyboardView(bindingStore: bindingStore, keySize: 52)
-                    .padding()
             }
             Tab("Profiles", systemImage: "person.2", value: 1) {
                 ProfilesView(bindingStore: bindingStore)
@@ -51,6 +50,6 @@ struct SettingsContentView: View {
                 )
             }
         }
-        .frame(width: 810, height: 395)
+        .frame(width: 786, height: 325)
     }
 }

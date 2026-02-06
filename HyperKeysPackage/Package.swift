@@ -24,7 +24,8 @@ let package = Package(
                 "Permissions",
                 "KeyboardUI",
                 "Shared",
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
 
         // Core event tap and hyper key state machine

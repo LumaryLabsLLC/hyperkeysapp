@@ -4,43 +4,75 @@ A macOS menu bar app that turns any key into a **Hyper Key** — giving you inst
 
 ![Keyboard View](pics/image1.png)
 
+## Getting Started
+
+1. Download `HyperKeys.zip` from [Releases](https://github.com/LumaryLabsLLC/hyperkeysapp/releases)
+2. Unzip and move `HyperKeys.app` to `/Applications`
+3. Open the app — it appears in your menu bar
+4. Grant **Accessibility** and **Input Monitoring** permissions when prompted
+5. Double-tap the Hyper Key to open settings at any time
+
+> **Note:** Since the app is not notarized, macOS may block it on first launch. Right-click the app → **Open** → **Open** to bypass Gatekeeper.
+
+## How It Works
+
+HyperKeys remaps a single key (default: backtick `` ` ``) into a **Hyper Key**. Quick-tap it and the original character still types. Hold it down and press any other key to trigger a custom action.
+
 ## Features
 
-### Hyper Key
-Remap any key (e.g. Caps Lock, backtick) to act as a Hyper Key. Tap it quickly and the original key still works. Hold it down and press another key to trigger a binding.
-
 ### App Launcher
-Bind any key to instantly launch or focus an application. Select multiple apps and assign each a window position — one shortcut launches them all, tiled exactly where you want them.
+
+Click any key on the keyboard view to bind it. In the **Apps** tab, select one or more apps to launch with a single shortcut. When selecting multiple apps, you can assign each a window position — one keypress launches them all, tiled exactly where you want.
 
 ![App Bindings](pics/image2.png)
 
 ![App Group with Window Positions](pics/image5.png)
 
 ### Window Management
-Tile windows to halves, quarters, thirds, sixths, or fourths — plus full screen, center, and reasonable size presets. Configurable gap between tiled windows.
+
+In the **Window** tab, pick a tiling position for the focused window. Supports halves, quarters, thirds, sixths, fourths, full screen, center, and more. Configure the gap between tiled windows in **Settings → Window Management**.
 
 ![Window Positions](pics/image3.png)
 
 ### Menu Item Shortcuts
-Trigger any menu bar action from any running app with a key binding. Browse menus visually and bind them to your Hyper Key combos.
+
+In the **Menu Item** tab, select any running app to browse its menu bar. Pick any menu action and bind it to your Hyper Key combo — no need to memorize deep menu paths.
 
 ![Menu Item Bindings](pics/image4.png)
 
 ### Profiles
-Create multiple binding profiles and switch between them. Set up automatic profile switching per-app — your bindings adapt to what you're working in.
+
+Create multiple binding profiles in the **Profiles** tab. Switch between them from the menu bar. Set up per-app automatic switching so your bindings adapt to the frontmost application.
+
+### Changing the Hyper Key
+
+Go to **Settings → Hyper Key** and click **Change**, then press the key you want to use. Popular choices: Caps Lock (remap via macOS settings first), backtick, or right Option.
 
 ### Double-Tap
-Double-tap the Hyper Key to toggle the settings window.
+
+Double-tap the Hyper Key to toggle the settings window open or closed.
 
 ## Requirements
 
 - macOS 15.0+
-- Accessibility permissions (required for key remapping and window management)
+- Accessibility permissions (window management and menu bar reading)
+- Input Monitoring permissions (key event tap)
 
-## Installation
+## Building from Source
 
-Build from source with Xcode 16+ or download from Releases.
+```
+git clone https://github.com/LumaryLabsLLC/hyperkeysapp.git
+cd hyperkeysapp
+open HyperKeys.xcworkspace
+```
+
+Build and run the **HyperKeys** scheme in Xcode 16+.
 
 ## License
 
 MIT
+
+## Links
+
+- [GitHub](https://github.com/LumaryLabsLLC/hyperkeysapp)
+- [Lumary Labs](https://lumarylabs.com/)

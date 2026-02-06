@@ -116,11 +116,35 @@ struct GeneralSettingsView: View {
 
                 // About section
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("About", systemImage: "info.circle")
-                        .font(.title3.bold())
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("About", systemImage: "info.circle")
+                                .font(.title3.bold())
 
-                    LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
-                    LabeledContent("Build", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1")
+                            LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
+                            LabeledContent("Build", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1")
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Link("github.com/LumaryLabsLLC/hyperkeysapp", destination: URL(string: "https://github.com/LumaryLabsLLC/hyperkeysapp")!)
+                                Link("lumarylabs.com", destination: URL(string: "https://lumarylabs.com/")!)
+                            }
+                            .font(.callout)
+                            .padding(.top, 4)
+                        }
+
+                        Spacer()
+
+                        if let logoURL = Bundle.module.url(forResource: "lumary-logo", withExtension: "svg"),
+                           let logoImage = NSImage(contentsOf: logoURL) {
+                            Link(destination: URL(string: "https://lumarylabs.com/")!) {
+                                Image(nsImage: logoImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(height: 64)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
             .padding(24)
