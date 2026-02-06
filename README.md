@@ -24,25 +24,27 @@ HyperKeys remaps a single key (default: **Caps Lock**) into a **Hyper Key**. Qui
 
 Click any key on the keyboard view to bind it. In the **Apps** tab, select one or more apps to launch with a single shortcut. When selecting multiple apps, you can assign each a window position — one keypress launches them all, tiled exactly where you want.
 
-![App Bindings](pics/image2.png)
+![App Bindings](pics/image3.png)
 
-![App Group with Window Positions](pics/image5.png)
+![App Group with Window Positions](pics/image6.png)
 
 ### Window Management
 
 In the **Window** tab, pick a tiling position for the focused window. Supports halves, quarters, thirds, sixths, fourths, full screen, center, and more. Configure the gap between tiled windows in **Settings → Window Management**.
 
-![Window Positions](pics/image3.png)
+![Window Positions](pics/image4.png)
 
 ### Menu Item Shortcuts
 
 In the **Menu Item** tab, select any running app to browse its menu bar. Pick any menu action and bind it to your Hyper Key combo — no need to memorize deep menu paths.
 
-![Menu Item Bindings](pics/image4.png)
+![Menu Item Bindings](pics/image5.png)
 
 ### Profiles
 
 Create multiple binding profiles in the **Profiles** tab. Switch between them from the menu bar. Set up per-app automatic switching so your bindings adapt to the frontmost application.
+
+![Profiles](pics/image2.png)
 
 ### Changing the Hyper Key
 
