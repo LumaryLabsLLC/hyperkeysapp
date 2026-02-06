@@ -1,129 +1,44 @@
-# HyperKeys - macOS App
+# HyperKeys
 
-A modern macOS application using a **workspace + SPM package** architecture for clean separation between app shell and feature code.
+A macOS menu bar app that turns any key into a **Hyper Key** — giving you instant access to app launching, window management, and menu item shortcuts, all from a single modifier.
 
-## Project Architecture
+![Keyboard View](pics/image1.png)
 
-```
-HyperKeys/
-├── HyperKeys.xcworkspace/              # Open this file in Xcode
-├── HyperKeys.xcodeproj/                # App shell project
-├── HyperKeys/                          # App target (minimal)
-│   ├── Assets.xcassets/                # App-level assets (icons, colors)
-│   ├── HyperKeysApp.swift              # App entry point
-│   ├── HyperKeys.entitlements          # App sandbox settings
-│   └── HyperKeys.xctestplan            # Test configuration
-├── HyperKeysPackage/                   # 🚀 Primary development area
-│   ├── Package.swift                   # Package configuration
-│   ├── Sources/HyperKeysFeature/       # Your feature code
-│   └── Tests/HyperKeysFeatureTests/    # Unit tests
-└── HyperKeysUITests/                   # UI automation tests
-```
+## Features
 
-## Key Architecture Points
+### Hyper Key
+Remap any key (e.g. Caps Lock, backtick) to act as a Hyper Key. Tap it quickly and the original key still works. Hold it down and press another key to trigger a binding.
 
-### Workspace + SPM Structure
-- **App Shell**: `HyperKeys/` contains minimal app lifecycle code
-- **Feature Code**: `HyperKeysPackage/Sources/HyperKeysFeature/` is where most development happens
-- **Separation**: Business logic lives in the SPM package, app target just imports and displays it
+### App Launcher
+Bind any key to instantly launch or focus an application. No more fumbling through Cmd+Tab.
 
-### Buildable Folders (Xcode 16)
-- Files added to the filesystem automatically appear in Xcode
-- No need to manually add files to project targets
-- Reduces project file conflicts in teams
-
-### App Sandbox
-The app is sandboxed by default with basic file access permissions. Modify `HyperKeys.entitlements` to add capabilities as needed.
-
-## Development Notes
-
-### Code Organization
-Most development happens in `HyperKeysPackage/Sources/HyperKeysFeature/` - organize your code as you prefer.
-
-### Public API Requirements
-Types exposed to the app target need `public` access:
-```swift
-public struct SettingsView: View {
-    public init() {}
-    
-    public var body: some View {
-        // Your view code
-    }
-}
-```
-
-### Adding Dependencies
-Edit `HyperKeysPackage/Package.swift` to add SPM dependencies:
-```swift
-dependencies: [
-    .package(url: "https://github.com/example/SomePackage", from: "1.0.0")
-],
-targets: [
-    .target(
-        name: "HyperKeysFeature",
-        dependencies: ["SomePackage"]
-    ),
-]
-```
-
-### Test Structure
-- **Unit Tests**: `HyperKeysPackage/Tests/HyperKeysFeatureTests/` (Swift Testing framework)
-- **UI Tests**: `HyperKeysUITests/` (XCUITest framework)
-- **Test Plan**: `HyperKeys.xctestplan` coordinates all tests
-
-## Configuration
-
-### XCConfig Build Settings
-Build settings are managed through **XCConfig files** in `Config/`:
-- `Config/Shared.xcconfig` - Common settings (bundle ID, versions, deployment target)
-- `Config/Debug.xcconfig` - Debug-specific settings  
-- `Config/Release.xcconfig` - Release-specific settings
-- `Config/Tests.xcconfig` - Test-specific settings
-
-### App Sandbox & Entitlements
-The app is sandboxed by default with basic file access. Edit `HyperKeys/HyperKeys.entitlements` to add capabilities:
-```xml
-<key>com.apple.security.files.user-selected.read-write</key>
-<true/>
-<key>com.apple.security.network.client</key>
-<true/>
-<!-- Add other entitlements as needed -->
-```
-
-## macOS-Specific Features
+![App Bindings](pics/image2.png)
 
 ### Window Management
-Add multiple windows and settings panels:
-```swift
-@main
-struct HyperKeysApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-        
-        Settings {
-            SettingsView()
-        }
-    }
-}
-```
+Tile windows to halves, quarters, thirds, sixths, or fourths — plus full screen, center, and reasonable size presets. Configurable gap between tiled windows.
 
-### Asset Management
-- **App-Level Assets**: `HyperKeys/Assets.xcassets/` (app icon with multiple sizes, accent color)
-- **Feature Assets**: Add `Resources/` folder to SPM package if needed
+![Window Positions](pics/image3.png)
 
-### SPM Package Resources
-To include assets in your feature package:
-```swift
-.target(
-    name: "HyperKeysFeature",
-    dependencies: [],
-    resources: [.process("Resources")]
-)
-```
+### Menu Item Shortcuts
+Trigger any menu bar action from any running app with a key binding. Browse menus visually and bind them to your Hyper Key combos.
 
-## Notes
+![Menu Item Bindings](pics/image4.png)
 
-### Generated with XcodeBuildMCP
-This project was scaffolded using [XcodeBuildMCP](https://github.com/cameroncooke/XcodeBuildMCP), which provides tools for AI-assisted macOS development workflows.
+### Profiles
+Create multiple binding profiles and switch between them. Set up automatic profile switching per-app — your bindings adapt to what you're working in.
+
+### Double-Tap
+Double-tap the Hyper Key to toggle the settings window.
+
+## Requirements
+
+- macOS 15.0+
+- Accessibility permissions (required for key remapping and window management)
+
+## Installation
+
+Build from source with Xcode 16+ or download from Releases.
+
+## License
+
+MIT
