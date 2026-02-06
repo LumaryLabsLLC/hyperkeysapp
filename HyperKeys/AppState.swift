@@ -8,12 +8,19 @@ import Permissions
 import Shared
 import SwiftUI
 
+extension Notification.Name {
+    static let toggleSettingsWindow = Notification.Name("HyperKeys.toggleSettingsWindow")
+}
+
 @MainActor
 @Observable
 public final class AppState {
     let permissionManager = PermissionManager()
     let bindingStore = BindingStore()
     let frontmostAppObserver = FrontmostAppObserver()
+
+    /// Stored by the view layer so we can open the settings window programmatically.
+    static var openSettingsWindow: (() -> Void)?
 
     private var eventTapManager: EventTapManager?
     private var actionExecutor: ActionExecutor?
@@ -46,6 +53,11 @@ public final class AppState {
         manager.engine.onHyperKeyActivated = { [weak executor] keyCode in
             Task { @MainActor in
                 executor?.execute(keyCode: keyCode)
+            }
+        }
+        manager.engine.onDoubleTap = {
+            Task { @MainActor in
+                NotificationCenter.default.post(name: .toggleSettingsWindow, object: nil)
             }
         }
         manager.start()

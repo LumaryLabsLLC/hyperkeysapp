@@ -25,7 +25,7 @@ struct HyperKeysApp: App {
                 }
             }
         }
-        .defaultSize(width: 850, height: 500)
+        .windowResizability(.contentSize)
     }
 }
 
@@ -34,6 +34,11 @@ struct MenuBarMenu: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        let _ = AppState.openSettingsWindow = { [openWindow] in
+            openWindow(id: "settings")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
         if appState.permissionManager.allPermissionsGranted {
             Button("Hyper Key: Active") {}
                 .disabled(true)

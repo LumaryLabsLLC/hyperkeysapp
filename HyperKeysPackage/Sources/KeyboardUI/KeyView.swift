@@ -78,8 +78,8 @@ public struct KeyView: View {
                             .font(.system(size: keySize * 0.15, design: .rounded))
                             .foregroundStyle(isHyperKey ? .white.opacity(0.7) : .secondary)
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 } else {
                     // Number row: shifted char top, main char bottom
@@ -93,8 +93,10 @@ public struct KeyView: View {
                     }
                 }
             } else if isTextLabel {
-                // Text key: left-aligned, smaller text (tab, delete, return, etc.)
-                VStack(alignment: .leading, spacing: 0) {
+                // Text key: right-aligned, smaller text (delete, return, shift, etc.)
+                // Exception: "tab" and "caps lock" stay left-aligned
+                let alignRight = definition.label != "tab" && definition.label != "caps lock"
+                VStack(alignment: alignRight ? .trailing : .leading, spacing: 0) {
                     Spacer(minLength: 0)
                     Text(definition.label)
                         .font(.system(size: keySize * 0.18, weight: .medium, design: .rounded))
@@ -102,9 +104,9 @@ public struct KeyView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
                 }
-                .padding(.horizontal, 4)
-                .padding(.bottom, 3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignRight ? .trailing : .leading)
             } else {
                 // Single character or symbol: centered
                 Text(definition.label)

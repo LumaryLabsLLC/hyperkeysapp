@@ -25,7 +25,7 @@ public enum MenuBarReader {
 
         var results: [MenuItemInfo] = []
         for child in children {
-            if let title = getTitle(child) {
+            if let title = getTitle(child), title != "Apple" {
                 let items = readSubmenu(element: child, parentPath: [title])
                 results.append(MenuItemInfo(title: title, path: [title], children: items))
             }

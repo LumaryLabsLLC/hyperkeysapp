@@ -1,6 +1,7 @@
 import EventEngine
 import KeyBindings
 import Permissions
+import Shared
 import SwiftUI
 
 struct GeneralSettingsView: View {
@@ -9,6 +10,7 @@ struct GeneralSettingsView: View {
     var onHyperKeyChanged: ((KeyCode) -> Void)?
 
     @State private var isCapturingHyperKey = false
+    @State private var windowGap = WindowGap.load()
 
     var body: some View {
         ScrollView {
@@ -49,6 +51,29 @@ struct GeneralSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                Divider()
+
+                // Window Management section
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Window Management", systemImage: "rectangle.split.2x1")
+                        .font(.title3.bold())
+
+                    Picker("Gap between windows", selection: $windowGap) {
+                        ForEach(WindowGap.allCases, id: \.self) { gap in
+                            Text(gap.displayName).tag(gap)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 300)
+                    .onChange(of: windowGap) { _, newValue in
+                        newValue.save()
+                    }
+
+                    Text("Space between tiled windows")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Divider()
 
                 // Permissions section

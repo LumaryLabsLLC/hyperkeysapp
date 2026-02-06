@@ -7,6 +7,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Ensure we start as an accessory (no Dock icon), since LSUIElement = YES
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(toggleSettingsWindow),
+            name: Notification.Name.toggleSettingsWindow,
+            object: nil
+        )
+    }
+
+    @objc private func toggleSettingsWindow() {
+        MainActor.assumeIsolated {
+            if let window = NSApp.windows.first(where: { $0.title == "HyperKeys Settings" }) {
+                if window.isVisible {
+                    window.close()
+                } else {
+                    window.makeKeyAndOrderFront(nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            } else {
+                AppState.openSettingsWindow?()
+            }
+        }
     }
 }

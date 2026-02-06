@@ -21,6 +21,9 @@ public struct BindingPopover: View {
     @State private var showingGroupName = false
     @State private var groupName = ""
 
+    // Window positions for app groups
+    @State private var appWindowPositions: [String: WindowPosition] = [:]
+
     // Menu item picker state
     @State private var menuTargetBundleId: String?
     @State private var menuTargetName = ""
@@ -43,7 +46,7 @@ public struct BindingPopover: View {
             Divider()
             tabContent
         }
-        .frame(width: 400, height: 450)
+        .frame(width: 400, height: 480)
         .task {
             installedApps.scan()
             // Pre-select apps if already bound to a group
@@ -52,6 +55,7 @@ public struct BindingPopover: View {
                 if let group = groups.first(where: { $0.id == groupId }) {
                     selectedApps = installedApps.apps.filter { group.appBundleIdentifiers.contains($0.bundleIdentifier) }
                     groupName = group.name
+                    appWindowPositions = group.windowPositions
                 }
             }
             // Pre-select if bound to a single app
@@ -149,6 +153,27 @@ public struct BindingPopover: View {
 
     private var appPicker: some View {
         VStack(spacing: 0) {
+            // Search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search apps...", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal)
+            .padding(.top, 8)
+
             // Selected apps chips
             if !selectedApps.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -182,11 +207,6 @@ public struct BindingPopover: View {
                 .padding(.top, 8)
             }
 
-            TextField("Search apps...", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal)
-                .padding(.top, 8)
-
             List(filteredApps) { app in
                 let isSelected = selectedApps.contains(where: { $0.bundleIdentifier == app.bundleIdentifier })
                 Button {
@@ -207,25 +227,39 @@ public struct BindingPopover: View {
                 .buttonStyle(.plain)
             }
 
-            // Bottom bar: selection count + bind button
+            // Bottom bar
             if !selectedApps.isEmpty {
                 Divider()
-                HStack {
-                    if selectedApps.count == 1 {
-                        Text(selectedApps[0].name)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("\(selectedApps.count) apps selected")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                VStack(spacing: 4) {
+                    ForEach(selectedApps) { app in
+                        HStack(spacing: 6) {
+                            if let icon = app.icon {
+                                Image(nsImage: icon)
+                                    .resizable()
+                                    .frame(width: 18, height: 18)
+                            }
+                            Text(app.name)
+                                .font(.callout)
+                                .lineLimit(1)
+                            Spacer()
+                            Picker("", selection: windowPositionBinding(for: app.bundleIdentifier)) {
+                                Text("No Position").tag(nil as WindowPosition?)
+                                Divider()
+                                ForEach(tilePositions, id: \.self) { pos in
+                                    Text(pos.displayName).tag(pos as WindowPosition?)
+                                }
+                            }
+                            .fixedSize()
+                        }
                     }
-                    Spacer()
-                    Button("Bind") {
-                        bindSelectedApps()
+                    HStack {
+                        Spacer()
+                        Button("Bind") {
+                            bindSelectedApps()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -234,7 +268,6 @@ public struct BindingPopover: View {
     }
 
     private func handleDone() {
-        // If user had a binding but deselected all apps, remove the binding
         if currentBinding != nil && selectedApps.isEmpty {
             if let groupId = bindingStore.activeGroupId {
                 bindingStore.removeBindingInGroup(groupId: groupId, keyCode: keyCode)
@@ -254,8 +287,8 @@ public struct BindingPopover: View {
     }
 
     private func bindSelectedApps() {
-        if selectedApps.count == 1 {
-            // Single app → direct binding
+        if selectedApps.count == 1 && appWindowPositions[selectedApps[0].bundleIdentifier] == nil {
+            // Single app, no position → direct binding
             let app = selectedApps[0]
             let binding = KeyBinding(
                 keyCode: keyCode,
@@ -267,6 +300,10 @@ public struct BindingPopover: View {
                 bindingStore.setBinding(binding)
             }
             onDismiss()
+        } else if selectedApps.count == 1 {
+            // Single app with position → auto-create 1-app group
+            groupName = selectedApps[0].name
+            saveGroup()
         } else {
             // Multiple apps → prompt for group name
             if groupName.isEmpty {
@@ -281,15 +318,15 @@ public struct BindingPopover: View {
         let name = groupName.isEmpty ? "Group" : groupName
         var groups = (try? Persistence.load([AppGroup].self, from: "appGroups.json")) ?? []
 
-        // Check if we're updating an existing group
         var group: AppGroup
         if case .showAppGroup(let existingId) = currentBinding?.action,
            let idx = groups.firstIndex(where: { $0.id == existingId }) {
             groups[idx].name = name
             groups[idx].appBundleIdentifiers = selectedApps.map(\.bundleIdentifier)
+            groups[idx].windowPositions = appWindowPositions
             group = groups[idx]
         } else {
-            group = AppGroup(name: name, appBundleIdentifiers: selectedApps.map(\.bundleIdentifier))
+            group = AppGroup(name: name, appBundleIdentifiers: selectedApps.map(\.bundleIdentifier), windowPositions: appWindowPositions)
             groups.append(group)
         }
         try? Persistence.save(groups, to: "appGroups.json")
@@ -303,26 +340,38 @@ public struct BindingPopover: View {
         onDismiss()
     }
 
-    // MARK: - Window Picker
+    // MARK: - Window Picker (Visual Grid)
+
+    private var currentWindowPosition: WindowPosition? {
+        if case .windowAction(let pos) = currentBinding?.action {
+            return pos
+        }
+        return nil
+    }
 
     private var windowPicker: some View {
-        List(WindowPosition.allCases, id: \.self) { position in
-            Button {
-                let binding = KeyBinding(keyCode: keyCode, action: .windowAction(position))
-                if let groupId = bindingStore.activeGroupId {
-                    bindingStore.setBindingInGroup(groupId: groupId, binding: binding)
-                } else {
-                    bindingStore.setBinding(binding)
-                }
-                onDismiss()
-            } label: {
-                HStack {
-                    Image(systemName: iconName(for: position))
-                    Text(position.displayName)
-                    Spacer()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(WindowPositionCategory.allCases, id: \.self) { category in
+                    let positions = WindowPosition.allCases.filter { $0.category == category }
+                    if !positions.isEmpty {
+                        WindowPositionCategoryGrid(
+                            category: category,
+                            positions: positions,
+                            selected: currentWindowPosition
+                        ) { position in
+                            let binding = KeyBinding(keyCode: keyCode, action: .windowAction(position))
+                            if let groupId = bindingStore.activeGroupId {
+                                bindingStore.setBindingInGroup(groupId: groupId, binding: binding)
+                            } else {
+                                bindingStore.setBinding(binding)
+                            }
+                            onDismiss()
+                        }
+                    }
                 }
             }
-            .buttonStyle(.plain)
+            .padding()
         }
     }
 
@@ -471,6 +520,23 @@ public struct BindingPopover: View {
 
     // MARK: - Helpers
 
+    private func windowPositionBinding(for bundleId: String) -> Binding<WindowPosition?> {
+        Binding(
+            get: { appWindowPositions[bundleId] },
+            set: {
+                if let value = $0 {
+                    appWindowPositions[bundleId] = value
+                } else {
+                    appWindowPositions.removeValue(forKey: bundleId)
+                }
+            }
+        )
+    }
+
+    private var tilePositions: [WindowPosition] {
+        WindowPosition.allCases
+    }
+
     private var filteredApps: [AppInfo] {
         if searchText.isEmpty { return installedApps.apps }
         return installedApps.apps.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
@@ -500,21 +566,86 @@ public struct BindingPopover: View {
         case .none: "circle.slash"
         }
     }
+}
 
-    private func iconName(for position: WindowPosition) -> String {
-        switch position {
-        case .leftHalf: "rectangle.lefthalf.filled"
-        case .rightHalf: "rectangle.righthalf.filled"
-        case .topHalf: "rectangle.tophalf.filled"
-        case .bottomHalf: "rectangle.bottomhalf.filled"
-        case .topLeftQuarter: "rectangle.topthird.inset.filled"
-        case .topRightQuarter: "rectangle.topthird.inset.filled"
-        case .bottomLeftQuarter: "rectangle.bottomthird.inset.filled"
-        case .bottomRightQuarter: "rectangle.bottomthird.inset.filled"
-        case .fullScreen: "rectangle.fill"
-        case .center: "rectangle.center.inset.filled"
-        case .nextScreen: "rectangle.righthalf.inset.arrow.right"
-        case .previousScreen: "rectangle.lefthalf.inset.arrow.left"
+// MARK: - Visual Grid Components
+
+private struct WindowPositionTile: View {
+    let position: WindowPosition
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    @State private var isHovered = false
+
+    private let tileWidth: CGFloat = 50
+    private let tileHeight: CGFloat = 34
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 4) {
+                ZStack {
+                    // Screen background
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.quaternary)
+                        .frame(width: tileWidth, height: tileHeight)
+
+                    if let rect = position.normalizedRect {
+                        // Highlighted area
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(isSelected ? Color.accentColor : (isHovered ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.5)))
+                            .frame(
+                                width: max(rect.width * tileWidth - 2, 4),
+                                height: max(rect.height * tileHeight - 2, 4)
+                            )
+                            .offset(
+                                x: (rect.origin.x - 0.5 + rect.width / 2) * tileWidth,
+                                y: (rect.origin.y - 0.5 + rect.height / 2) * tileHeight
+                            )
+                    }
+
+                    // Border
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(isSelected ? Color.accentColor : (isHovered ? Color.accentColor.opacity(0.4) : .clear), lineWidth: 1.5)
+                        .frame(width: tileWidth, height: tileHeight)
+                }
+
+                Text(position.displayName)
+                    .font(.system(size: 9))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+                    .frame(width: tileWidth + 12)
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct WindowPositionCategoryGrid: View {
+    let category: WindowPositionCategory
+    let positions: [WindowPosition]
+    let selected: WindowPosition?
+    let onSelect: (WindowPosition) -> Void
+
+    private let columns = [GridItem(.adaptive(minimum: 62), spacing: 8)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(category.rawValue.uppercased())
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fontWeight(.semibold)
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(positions, id: \.self) { position in
+                    WindowPositionTile(
+                        position: position,
+                        isSelected: selected == position
+                    ) {
+                        onSelect(position)
+                    }
+                }
+            }
         }
     }
 }

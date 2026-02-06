@@ -42,7 +42,7 @@ let package = Package(
         // App launch/focus, app groups
         .target(
             name: "AppSwitcher",
-            dependencies: ["Shared"]
+            dependencies: ["Shared", "WindowEngine"]
         ),
 
         // Frontmost app observer, menu bar reading

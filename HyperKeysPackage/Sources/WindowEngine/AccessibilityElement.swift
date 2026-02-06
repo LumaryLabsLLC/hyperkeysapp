@@ -57,7 +57,13 @@ public struct AccessibilityElement: @unchecked Sendable {
     /// Get the screen that contains most of this window.
     public func currentScreen() -> NSScreen? {
         guard let pos = position, let sz = size else { return NSScreen.main }
-        let windowCenter = CGPoint(x: pos.x + sz.width / 2, y: pos.y + sz.height / 2)
-        return NSScreen.screens.first { NSMouseInRect(windowCenter, $0.frame, false) } ?? NSScreen.main
+        // pos is in AX coordinates (Y=0 at top of primary screen, increases downward).
+        // NSScreen.frame uses Cocoa coordinates (Y=0 at bottom of primary screen, increases upward).
+        // Convert AX Y → Cocoa Y before comparing.
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        let centerX = pos.x + sz.width / 2
+        let centerY = primaryHeight - (pos.y + sz.height / 2)
+        let cocoaCenter = CGPoint(x: centerX, y: centerY)
+        return NSScreen.screens.first { NSMouseInRect(cocoaCenter, $0.frame, false) } ?? NSScreen.main
     }
 }

@@ -1,5 +1,6 @@
 import AppKit
 import Shared
+import WindowEngine
 
 private func groupLog(_ message: String) {
     let path = "/tmp/hyperkeys.log"
@@ -37,6 +38,29 @@ public enum AppGroupManager {
             for bundleId in group.appBundleIdentifiers {
                 groupLog("Opening \(bundleId)")
                 AppLauncher.launchOrFocus(bundleIdentifier: bundleId)
+            }
+
+            // Apply window positions after apps have time to launch
+            if !group.windowPositions.isEmpty {
+                groupLog("Scheduling window positions for \(group.windowPositions.count) apps")
+                Task { @MainActor in
+                    // Retry up to 5 times with increasing delays to handle slow app launches
+                    var pending = group.windowPositions
+                    for attempt in 1...5 {
+                        let delayMs = attempt == 1 ? 500 : 400
+                        try? await Task.sleep(for: .milliseconds(delayMs))
+                        for (bundleId, position) in pending {
+                            groupLog("Attempt \(attempt): positioning \(bundleId) → \(position.displayName)")
+                            if WindowManager.moveWindow(to: position, ofApp: bundleId) {
+                                pending.removeValue(forKey: bundleId)
+                            }
+                        }
+                        if pending.isEmpty { break }
+                    }
+                    if !pending.isEmpty {
+                        groupLog("Failed to position \(pending.count) app(s) after retries")
+                    }
+                }
             }
         }
     }

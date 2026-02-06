@@ -51,6 +51,6 @@ struct SettingsContentView: View {
                 )
             }
         }
-        .frame(minWidth: 800, minHeight: 400)
+        .frame(width: 810, height: 395)
     }
 }
