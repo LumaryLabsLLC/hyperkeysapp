@@ -7,7 +7,7 @@
 // ==========================================
 // Test Target Settings (Customizable by scaffold tool)
 // ==========================================
-PRODUCT_BUNDLE_IDENTIFIER = com.hyperkeys.app
+PRODUCT_BUNDLE_IDENTIFIER = com.hyperkeys.app.UITests
 TEST_TARGET_NAME = HyperKeys
 
 // Fix duplicate module name issue

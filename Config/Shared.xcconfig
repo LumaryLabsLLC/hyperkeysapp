@@ -39,3 +39,8 @@ CODE_SIGN_IDENTITY = Apple Development
 // Entitlements
 // ==========================================
 CODE_SIGN_ENTITLEMENTS = Config/HyperKeys.entitlements
+
+// ==========================================
+// Build Performance (all configurations)
+// ==========================================
+ALWAYS_SEARCH_USER_PATHS = NO
