@@ -8,8 +8,8 @@
 PRODUCT_NAME = HyperKeys
 PRODUCT_DISPLAY_NAME = HyperKeys
 PRODUCT_BUNDLE_IDENTIFIER = com.hyperkeys.app
-MARKETING_VERSION = 2.0
-CURRENT_PROJECT_VERSION = 2
+MARKETING_VERSION = 2.1
+CURRENT_PROJECT_VERSION = 3
 
 // ==========================================
 // Platform Configuration
