@@ -5,3 +5,9 @@
 
 // Emit a dSYM bundle for crash symbolication.
 DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+
+// Notarization needs the hardened runtime and a secure timestamp.
+ENABLE_HARDENED_RUNTIME = YES
+OTHER_CODE_SIGN_FLAGS = --timestamp
+// No debugger entitlement (get-task-allow) in shipped builds; notarization rejects it.
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO

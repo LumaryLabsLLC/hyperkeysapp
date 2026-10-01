@@ -1,7 +1,22 @@
 import Foundation
 
 public enum WindowPositionCategory: String, CaseIterable, Sendable {
-    case halves, quarters, thirds, sixths, fourths, special
+    case halves, quarters, thirds, fourths, sixths, special
+
+    public var displayName: String {
+        switch self {
+        case .halves: "Halves"
+        case .quarters: "Quarters"
+        case .thirds: "Thirds"
+        case .fourths: "Fourths"
+        case .sixths: "Sixths"
+        case .special: "Other"
+        }
+    }
+
+    public var positions: [WindowPosition] {
+        WindowPosition.allCases.filter { $0.category == self }
+    }
 }
 
 public enum WindowPosition: String, Codable, CaseIterable, Sendable {

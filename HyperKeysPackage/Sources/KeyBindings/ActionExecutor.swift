@@ -19,13 +19,17 @@ private func actionLog(_ message: String) {
 @MainActor
 public final class ActionExecutor {
     private let bindingStore: BindingStore
+    /// Shows the App Search launcher; provided by the app layer.
+    public var onShowAppSearch: (() -> Void)?
+    /// Shows the App Switcher grid; provided by the app layer.
+    public var onShowAppSwitcher: (() -> Void)?
+    /// Shows the Emoji & Symbols picker; provided by the app layer.
+    public var onShowEmojiPicker: (() -> Void)?
+    /// Shows the Snippets panel; provided by the app layer.
+    public var onShowSnippets: (() -> Void)?
 
     public init(bindingStore: BindingStore) {
         self.bindingStore = bindingStore
-    }
-
-    private func loadAppGroups() -> [AppGroup] {
-        (try? Persistence.load([AppGroup].self, from: "appGroups.json")) ?? []
     }
 
     public func execute(keyCode: KeyCode) {
@@ -45,7 +49,7 @@ public final class ActionExecutor {
             triggerMenuItem(appBundleId: appBundleId, menuPath: menuPath)
 
         case .showAppGroup(let groupId):
-            if let group = loadAppGroups().first(where: { $0.id == groupId }) {
+            if let group = AppGroupStore.shared.group(id: groupId) {
                 actionLog("Toggling group: \(group.name) (\(group.appBundleIdentifiers.count) apps)")
                 AppGroupManager.activate(group: group)
             }
@@ -54,6 +58,30 @@ public final class ActionExecutor {
             actionLog("Window action: \(position.displayName)")
             WindowManager.moveWindow(to: position)
 
+        case .appSearch:
+            actionLog("Showing App Search")
+            onShowAppSearch?()
+
+        case .appSwitcher:
+            actionLog("Showing App Switcher")
+            onShowAppSwitcher?()
+
+        case .emojiPicker:
+            actionLog("Showing Emoji & Symbols")
+            onShowEmojiPicker?()
+
+        case .openFolder(let path):
+            actionLog("Opening folder \(path)")
+            SystemCommands.open(path: path)
+
+        case .emptyTrash:
+            actionLog("Empty Trash")
+            SystemCommands.emptyTrash()
+
+        case .snippets:
+            actionLog("Showing Snippets")
+            onShowSnippets?()
+
         case .none:
             break
         }
@@ -61,7 +89,7 @@ public final class ActionExecutor {
 
     private func triggerMenuItem(appBundleId: String, menuPath: [String]) {
         if let app = NSRunningApplication.runningApplications(withBundleIdentifier: appBundleId).first {
-            app.activate(options: [.activateIgnoringOtherApps])
+            app.activate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 let _ = MenuBarReader.triggerMenuItem(forPID: app.processIdentifier, path: menuPath)
             }

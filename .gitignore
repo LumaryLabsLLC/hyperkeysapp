@@ -74,3 +74,6 @@ DerivedData/
 .idea/
 *.swp
 *~
+
+# Release builds
+build/

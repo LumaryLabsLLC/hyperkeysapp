@@ -14,6 +14,14 @@ public struct AppInfo: Codable, Identifiable, Hashable, Sendable {
 
     @MainActor
     public var icon: NSImage? {
-        NSWorkspace.shared.icon(forFile: path)
+        path.isEmpty ? AppIconCache.icon(forBundleId: bundleIdentifier) : AppIconCache.icon(forPath: path)
+    }
+
+    /// Builds an `AppInfo` for an installed app, or nil if the bundle id can't be resolved.
+    @MainActor
+    public static func resolve(bundleId: String) -> AppInfo? {
+        guard let path = AppIconCache.path(forBundleId: bundleId) else { return nil }
+        let name = FileManager.default.displayName(atPath: path).replacingOccurrences(of: ".app", with: "")
+        return AppInfo(bundleIdentifier: bundleId, name: name, path: path)
     }
 }

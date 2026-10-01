@@ -7,6 +7,18 @@ public enum BoundAction: Codable, Sendable, Hashable {
     case triggerMenuItem(appBundleId: String, menuPath: [String])
     case showAppGroup(groupId: UUID)
     case windowAction(WindowPosition)
+    /// Opens the floating App Search launcher.
+    case appSearch
+    /// Opens the open-apps / windows switcher grid.
+    case appSwitcher
+    /// Opens the Emoji & Symbols picker.
+    case emojiPicker
+    /// Opens a folder (or file) in Finder. Paths may start with "~".
+    case openFolder(path: String)
+    /// Empties the Trash, after confirming.
+    case emptyTrash
+    /// Opens the Snippets search panel.
+    case snippets
     case none
 }
 

@@ -1,3 +1,5 @@
+import AppKit
+import KeyboardUI
 import Permissions
 import SwiftUI
 
@@ -9,91 +11,129 @@ public struct OnboardingView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "keyboard")
-                .font(.system(size: 48))
-                .foregroundStyle(.purple)
-
-            Text("Welcome to HyperKeys")
-                .font(.largeTitle.bold())
-
-            Text("HyperKeys needs two system permissions to work.\nGrant each one below.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 16) {
-                permissionRow(
-                    title: "Accessibility",
-                    description: "Required for window management and menu bar reading",
-                    granted: permissionManager.accessibilityGranted,
-                    action: {
-                        permissionManager.requestAccessibility()
-                        PermissionManager.openAccessibilitySettings()
-                    }
-                )
-
-                permissionRow(
-                    title: "Input Monitoring",
-                    description: "Required for the Hyper key event tap",
-                    granted: permissionManager.inputMonitoringGranted,
-                    action: {
-                        permissionManager.requestInputMonitoring()
-                        PermissionManager.openInputMonitoringSettings()
-                    }
-                )
+        VStack(spacing: 28) {
+            VStack(spacing: 14) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 96, height: 96)
+                    .shadow(color: Brand.purple.opacity(0.35), radius: 18, y: 6)
+                Text("Welcome to HyperKeys")
+                    .font(.largeTitle.weight(.bold))
+                Text("Turn Caps Lock into a Hyper Key that opens apps, snaps windows and runs menu commands — from anywhere.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 460)
             }
 
-            if permissionManager.allPermissionsGranted {
-                Label("All permissions granted!", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+            VStack(spacing: 12) {
+                Text("Two quick permissions to get started")
                     .font(.headline)
-            } else {
-                VStack(spacing: 12) {
-                    Button {
-                        permissionManager.checkPermissions()
-                    } label: {
-                        Label("Refresh Permissions", systemImage: "arrow.clockwise")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Text("Already granted permissions?")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Button("Continue Anyway") {
-                        permissionManager.skipOnboarding()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                PermissionStep(
+                    number: 1,
+                    title: "Accessibility",
+                    detail: "Lets HyperKeys move windows and read app menus.",
+                    isGranted: permissionManager.accessibilityGranted
+                ) {
+                    permissionManager.requestAccessibility()
+                    PermissionManager.openAccessibilitySettings()
+                }
+                PermissionStep(
+                    number: 2,
+                    title: "Input Monitoring",
+                    detail: "Lets HyperKeys notice when you hold the Hyper Key.",
+                    isGranted: permissionManager.inputMonitoringGranted
+                ) {
+                    permissionManager.requestInputMonitoring()
+                    PermissionManager.openInputMonitoringSettings()
                 }
             }
+            .frame(maxWidth: 500)
+
+            footer
+                .frame(maxWidth: 500)
         }
         .padding(40)
-        .frame(width: 500, height: 500)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            RadialGradient(colors: [Brand.purple.opacity(0.18), .clear], center: .top, startRadius: 0, endRadius: 520)
+                .ignoresSafeArea()
+        }
         .onAppear { permissionManager.startPolling() }
         .onDisappear { permissionManager.stopPolling() }
     }
 
-    private func permissionRow(title: String, description: String, granted: Bool, action: @escaping () -> Void) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Image(systemName: granted ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(granted ? .green : .secondary)
-                    Text(title)
-                        .font(.headline)
-                }
-                Text(description)
-                    .font(.caption)
+    private var footer: some View {
+        HStack(spacing: 10) {
+            if permissionManager.allPermissionsGranted {
+                Label("You're all set", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.headline)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Waiting for permission — this page updates by itself.")
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if !granted {
-                Button("Grant") { action() }
-                    .buttonStyle(.borderedProminent)
+            Menu("Trouble?") {
+                Button("Check Again", systemImage: "arrow.clockwise") { permissionManager.checkPermissions() }
+                Button("Restart HyperKeys", systemImage: "arrow.triangle.2.circlepath") { permissionManager.restartApp() }
+                Divider()
+                Button("Continue Without Permissions") { permissionManager.skipOnboarding() }
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+    }
+}
+
+private struct PermissionStep: View {
+    let number: Int
+    let title: String
+    let detail: String
+    let isGranted: Bool
+    let onGrant: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(isGranted ? AnyShapeStyle(Color.green.gradient) : AnyShapeStyle(Brand.gradient))
+                if isGranted {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                } else {
+                    Text("\(number)")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            if isGranted {
+                Text("Granted")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.green)
+            } else {
+                Button("Open System Settings", action: onGrant)
+                    .hkProminentButtonStyle()
             }
         }
-        .padding()
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+        .padding(16)
+        .hkGlass(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .animation(.snappy, value: isGranted)
     }
 }

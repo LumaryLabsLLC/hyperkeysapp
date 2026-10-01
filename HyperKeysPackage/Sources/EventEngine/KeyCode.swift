@@ -84,6 +84,10 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
     case f11 = 0x67
     case f12 = 0x6F
 
+    /// Not a physical key: the hyper key is a keyboard that sends ⌃⌥⇧⌘ together
+    /// (a hardware "Hyper" key on Kinesis, ZSA, QMK/ZMK boards, …).
+    case modifierHyper = 0xFFFF
+
     public var displayLabel: String {
         switch self {
         case .a: "A"
@@ -157,16 +161,100 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
         case .f10: "F10"
         case .f11: "F11"
         case .f12: "F12"
+        case .modifierHyper: "✦"
+        }
+    }
+
+    /// Human-readable name, e.g. "Caps Lock" or "Backtick". Falls back to `displayLabel`.
+    public var name: String {
+        switch self {
+        case .capsLock: "Caps Lock"
+        case .tab: "Tab"
+        case .space: "Space"
+        case .returnKey: "Return"
+        case .delete: "Delete"
+        case .escape: "Escape"
+        case .forwardDelete: "Forward Delete"
+        case .grave: "Backtick"
+        case .minus: "Minus"
+        case .equal: "Equals"
+        case .leftBracket: "Left Bracket"
+        case .rightBracket: "Right Bracket"
+        case .backslash: "Backslash"
+        case .semicolon: "Semicolon"
+        case .quote: "Quote"
+        case .comma: "Comma"
+        case .period: "Period"
+        case .slash: "Slash"
+        case .leftArrow: "Left Arrow"
+        case .rightArrow: "Right Arrow"
+        case .upArrow: "Up Arrow"
+        case .downArrow: "Down Arrow"
+        case .modifierHyper: "Hyper (⌃⌥⇧⌘)"
+        default: displayLabel
         }
     }
 
     /// Keys that can be bound to Hyper+ actions (excludes escape)
     public var isBindable: Bool {
         switch self {
-        case .escape:
+        case .escape, .modifierHyper:
             return false
         default:
             return true
+        }
+    }
+}
+
+// MARK: - Config file names
+
+extension KeyCode {
+    /// The key's name in `config.json`: letters and digits as themselves, everything else spelled
+    /// out so it reads well in JSON ("space", "backtick", "leftBracket", "f5", "keyboardHyper").
+    public var configName: String {
+        switch self {
+        case .space: "space"
+        case .tab: "tab"
+        case .returnKey: "return"
+        case .delete: "delete"
+        case .escape: "escape"
+        case .forwardDelete: "forwardDelete"
+        case .capsLock: "capsLock"
+        case .leftArrow: "left"
+        case .rightArrow: "right"
+        case .upArrow: "up"
+        case .downArrow: "down"
+        case .grave: "backtick"
+        case .minus: "minus"
+        case .equal: "equals"
+        case .leftBracket: "leftBracket"
+        case .rightBracket: "rightBracket"
+        case .backslash: "backslash"
+        case .semicolon: "semicolon"
+        case .quote: "quote"
+        case .comma: "comma"
+        case .period: "period"
+        case .slash: "slash"
+        case .modifierHyper: "keyboardHyper"
+        default: displayLabel.lowercased() // a–z, 0–9, f1–f12, f18
+        }
+    }
+
+    /// Reads a key name from `config.json`. Case-insensitive; also accepts the literal character
+    /// ("`", "[", "/") and a few common spellings ("esc", "enter", "grave", "hyper").
+    public init?(configName name: String) {
+        let lowered = name.trimmingCharacters(in: .whitespaces).lowercased()
+        let aliases: [String: KeyCode] = [
+            "esc": .escape, "enter": .returnKey, "backspace": .delete, "caps": .capsLock, "caps lock": .capsLock,
+            "grave": .grave, "`": .grave, "-": .minus, "=": .equal, "equal": .equal, "[": .leftBracket,
+            "]": .rightBracket, "\\": .backslash, ";": .semicolon, "'": .quote, ",": .comma, ".": .period,
+            "/": .slash, "hyper": .modifierHyper, "arrowleft": .leftArrow, "arrowright": .rightArrow,
+            "arrowup": .upArrow, "arrowdown": .downArrow,
+        ]
+        if let key = aliases[lowered] ?? KeyCode.allCases.first(where: { $0.configName.lowercased() == lowered }) {
+            self = key
+        } else {
+            return nil
         }
     }
 }

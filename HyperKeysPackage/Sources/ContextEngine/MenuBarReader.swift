@@ -15,7 +15,8 @@ public struct MenuItemInfo: Sendable {
     }
 }
 
-@MainActor
+/// Accessibility-based menu bar access. Not main-actor bound, so large menus can be read
+/// on a background task without freezing the UI.
 public enum MenuBarReader {
     /// Read all menu items for the app with the given PID.
     public static func readMenuItems(forPID pid: pid_t) -> [MenuItemInfo] {

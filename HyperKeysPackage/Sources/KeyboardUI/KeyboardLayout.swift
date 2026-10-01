@@ -8,6 +8,7 @@ public struct KeyDefinition: Sendable {
     public let height: CGFloat  // relative height, 1.0 = standard, 0.5 = half-height
     public let row: Int
     public let isSpacer: Bool   // non-interactive gap between function key groups
+    public let isRightSide: Bool // right-hand modifiers mirror their legend alignment
 
     public init(
         keyCode: KeyCode? = nil,
@@ -15,7 +16,8 @@ public struct KeyDefinition: Sendable {
         width: CGFloat = 1.0,
         height: CGFloat = 1.0,
         row: Int,
-        isSpacer: Bool = false
+        isSpacer: Bool = false,
+        isRightSide: Bool = false
     ) {
         self.keyCode = keyCode
         self.label = label
@@ -23,6 +25,7 @@ public struct KeyDefinition: Sendable {
         self.height = height
         self.row = row
         self.isSpacer = isSpacer
+        self.isRightSide = isRightSide
     }
 }
 
@@ -91,7 +94,7 @@ public enum KeyboardLayout {
         // Row 3: ASDF — total 14.5
         // caps(1.75) + 11×1.0 + return(1.75) = 14.5
         [
-            KeyDefinition(label: "caps lock", width: 1.75, row: 3),
+            KeyDefinition(keyCode: .capsLock, label: "caps lock", width: 1.75, row: 3),
             KeyDefinition(keyCode: .a, label: "A", row: 3),
             KeyDefinition(keyCode: .s, label: "S", row: 3),
             KeyDefinition(keyCode: .d, label: "D", row: 3),
@@ -119,7 +122,7 @@ public enum KeyboardLayout {
             KeyDefinition(keyCode: .comma, label: "<\n,", row: 4),
             KeyDefinition(keyCode: .period, label: ">\n.", row: 4),
             KeyDefinition(keyCode: .slash, label: "?\n/", row: 4),
-            KeyDefinition(label: "shift", width: 2.25, row: 4),
+            KeyDefinition(label: "shift", width: 2.25, row: 4, isRightSide: true),
         ],
     ]
 
@@ -131,12 +134,18 @@ public enum KeyboardLayout {
         KeyDefinition(label: "⌥\noption", width: 1.25, row: 5),
         KeyDefinition(label: "⌘\ncommand", width: 1.5, row: 5),
         KeyDefinition(keyCode: .space, label: "", width: 4.0, row: 5),
-        KeyDefinition(label: "⌘\ncommand", width: 1.5, row: 5),
-        KeyDefinition(label: "⌥\noption", width: 1.25, row: 5),
+        KeyDefinition(label: "⌘\ncommand", width: 1.5, row: 5, isRightSide: true),
+        KeyDefinition(label: "⌥\noption", width: 1.25, row: 5, isRightSide: true),
     ]
 
     public static let arrowUp = KeyDefinition(keyCode: .upArrow, label: "▲", height: 0.5, row: 5)
     public static let arrowDown = KeyDefinition(keyCode: .downArrow, label: "▼", height: 0.5, row: 5)
-    public static let arrowLeft = KeyDefinition(keyCode: .leftArrow, label: "◀", row: 5)
-    public static let arrowRight = KeyDefinition(keyCode: .rightArrow, label: "▶", row: 5)
+    public static let arrowLeft = KeyDefinition(keyCode: .leftArrow, label: "◀", height: 0.5, row: 5)
+    public static let arrowRight = KeyDefinition(keyCode: .rightArrow, label: "▶", height: 0.5, row: 5)
+
+    /// Every key code in on-screen reading order, for sorting lists the way the keyboard reads.
+    public static let keyOrder: [KeyCode] = {
+        let all = macbookProRows.flatMap { $0 } + bottomRow + [arrowLeft, arrowUp, arrowDown, arrowRight]
+        return all.compactMap(\.keyCode)
+    }()
 }

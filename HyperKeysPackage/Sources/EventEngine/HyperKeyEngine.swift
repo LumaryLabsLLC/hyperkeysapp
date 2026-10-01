@@ -45,14 +45,44 @@ public final class HyperKeyEngine: @unchecked Sendable {
     public var logicalHyperKey: KeyCode = .capsLock
     public var onHyperKeyActivated: HyperKeyAction?
     public var onDoubleTap: (@Sendable () -> Void)?
+    /// A combo key auto-repeating while hyper is held (e.g. holding Tab in the switcher).
+    /// Repeats never re-run ordinary shortcuts; they're only reported here.
+    public var onHyperKeyRepeat: HyperKeyAction?
+    /// Called whenever the physical hyper key goes down (`true`) or up (`false`).
+    public var onHyperKeyStateChanged: (@Sendable (Bool) -> Void)?
+    /// Keyboard-Hyper mode only: whether a ⌃⌥⇧⌘ combo should be handled by HyperKeys.
+    /// Unhandled combos pass through so other apps' ⌃⌥⇧⌘ shortcuts keep working. nil handles all.
+    public var shouldHandleModifierCombo: (@Sendable (KeyCode) -> Bool)?
+    private var isHyperKeyDown = false
+
+    // Keyboard-Hyper (⌃⌥⇧⌘) mode state
+    private static let hyperModifiers: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
+    private var modifierHyperDownAt: CFAbsoluteTime = 0
+    private var comboSinceModifierDown = false
+    private var lastModifierTapAt: CFAbsoluteTime?
+    private var suppressedKeyUps: Set<UInt16> = []
 
     public init() {}
 
     /// Process a CGEvent. Returns nil to suppress the event, or the event to pass through.
     public func process(type: CGEventType, event: CGEvent) -> CGEvent? {
+        if logicalHyperKey == .modifierHyper {
+            return processModifierHyper(type: type, event: event)
+        }
+
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let isHyperKey = keyCode == hyperKeyCode
         let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+
+        if isHyperKey {
+            if type == .keyDown, !isRepeat, !isHyperKeyDown {
+                isHyperKeyDown = true
+                onHyperKeyStateChanged?(true)
+            } else if type == .keyUp, isHyperKeyDown {
+                isHyperKeyDown = false
+                onHyperKeyStateChanged?(false)
+            }
+        }
 
         switch (state, type) {
 
@@ -158,6 +188,13 @@ public final class HyperKeyEngine: @unchecked Sendable {
             }
             return nil
 
+        // HYPER ACTIVE: A held combo key auto-repeats → report it, never leak it to the app
+        case (.hyperActive, .keyDown) where !isHyperKey && isRepeat:
+            if let kc = KeyCode(rawValue: keyCode) {
+                onHyperKeyRepeat?(kc)
+            }
+            return nil
+
         // HYPER ACTIVE: Hyper key up → return to idle
         case (.hyperActive, .keyUp) where isHyperKey:
             engineLog("hyperActive → idle (hyperKey up)")
@@ -173,6 +210,58 @@ public final class HyperKeyEngine: @unchecked Sendable {
             return nil
 
         // Everything else → pass through
+        default:
+            return event
+        }
+    }
+
+    /// Hyper is a keyboard that sends ⌃⌥⇧⌘ together. Modifier changes always pass through;
+    /// key presses made while all four are held become hyper combos.
+    private func processModifierHyper(type: CGEventType, event: CGEvent) -> CGEvent? {
+        let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+        let allHeld = event.flags.contains(Self.hyperModifiers)
+
+        switch type {
+        case .flagsChanged:
+            guard allHeld != isHyperKeyDown else { return event }
+            isHyperKeyDown = allHeld
+            onHyperKeyStateChanged?(allHeld)
+            let now = CFAbsoluteTimeGetCurrent()
+            if allHeld {
+                modifierHyperDownAt = now
+                comboSinceModifierDown = false
+            } else if !comboSinceModifierDown, now - modifierHyperDownAt < tapTimeout {
+                // A tap on its own: two in a row is a double-tap.
+                if let last = lastModifierTapAt, now - last < doubleTapTimeout {
+                    lastModifierTapAt = nil
+                    engineLog("modifier hyper double-tap")
+                    onDoubleTap?()
+                } else {
+                    lastModifierTapAt = now
+                }
+            }
+            return event
+
+        case .keyDown:
+            guard allHeld, let key = KeyCode(rawValue: keyCode) else { return event }
+            comboSinceModifierDown = true
+            lastModifierTapAt = nil
+            if let shouldHandle = shouldHandleModifierCombo, !shouldHandle(key) {
+                return event
+            }
+            suppressedKeyUps.insert(keyCode)
+            if event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+                engineLog("modifier hyper combo: Hyper+\(key.displayLabel)")
+                onHyperKeyActivated?(key)
+            } else {
+                onHyperKeyRepeat?(key)
+            }
+            return nil
+
+        case .keyUp:
+            // Swallow the key-up of any combo we swallowed the key-down for.
+            return suppressedKeyUps.remove(keyCode) != nil ? nil : event
+
         default:
             return event
         }
@@ -194,6 +283,12 @@ public final class HyperKeyEngine: @unchecked Sendable {
         doubleTapTimer?.cancel()
         doubleTapTimer = nil
         state = .idle
+        suppressedKeyUps.removeAll()
+        lastModifierTapAt = nil
+        if isHyperKeyDown {
+            isHyperKeyDown = false
+            onHyperKeyStateChanged?(false)
+        }
     }
 
     public var currentState: State { state }
