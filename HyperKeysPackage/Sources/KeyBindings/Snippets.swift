@@ -7,12 +7,15 @@ public struct Snippet: Identifiable, Equatable, Sendable {
     public var name: String
     public var text: String
     public var tags: [String]
+    /// Typing this anywhere (say ";addr") replaces it with the snippet.
+    public var keyword: String?
 
-    public init(id: UUID = UUID(), name: String, text: String, tags: [String] = []) {
+    public init(id: UUID = UUID(), name: String, text: String, tags: [String] = [], keyword: String? = nil) {
         self.id = id
         self.name = name
         self.text = text
         self.tags = tags
+        self.keyword = keyword?.isEmpty == true ? nil : keyword
     }
 }
 
@@ -97,41 +100,13 @@ public final class SnippetStore {
 
     // MARK: - Placeholders
 
-    /// The placeholders HyperKeys fills in. They're named like Raycast's, so imported snippets keep working.
-    nonisolated(unsafe) private static let placeholderPattern = #/\{(clipboard|datetime|date|time|day|uuid|cursor)(?:\s+format="([^"]*)")?\}/#
-
-    /// Fills in `{clipboard}`, `{date}`, `{time}`, `{datetime}`, `{day}` and `{uuid}` when a snippet is pasted.
-    /// Dates take a format, e.g. `{date format="yyyy-MM-dd"}`. `{cursor}` is dropped.
+    /// Fills in placeholders like `{clipboard}`, `{date}` and `{date format="yyyy-MM-dd"}` (see `Placeholders`).
     public nonisolated static func expand(_ text: String, clipboard: String?, now: Date = Date()) -> String {
-        guard text.contains("{") else { return text }
-        return text.replacing(placeholderPattern) { match in
-            let name = match.output.1
-            if let format = match.output.2, ["date", "time", "datetime", "day"].contains(name) {
-                let formatter = DateFormatter()
-                formatter.dateFormat = String(format)
-                return formatter.string(from: now)
-            }
-            switch name {
-            case "clipboard": return clipboard ?? ""
-            case "date": return now.formatted(date: .abbreviated, time: .omitted)
-            case "time": return now.formatted(date: .omitted, time: .shortened)
-            case "datetime": return now.formatted(date: .abbreviated, time: .shortened)
-            case "day": return now.formatted(.dateTime.weekday(.wide))
-            case "uuid": return UUID().uuidString
-            default: return "" // cursor
-            }
-        }
+        Placeholders.expand(text, context: PlaceholderContext(clipboard: clipboard.map { [$0] } ?? [], now: now))
     }
 
-    /// Placeholders in `text` that `expand` leaves as written, by name: `["{argument}"]`.
+    /// Placeholders in `text` that are left as written, by name: `["{browser-tab}"]`.
     public nonisolated static func unsupportedPlaceholders(in text: String) -> [String] {
-        guard text.contains("{") else { return [] }
-        var found: [String] = []
-        for match in text.matches(of: #/\{([a-zA-Z][a-zA-Z-]*)([^{}]*)\}/#) {
-            guard text[match.range].wholeMatch(of: placeholderPattern) == nil else { continue }
-            let name = "{\(match.output.1)}"
-            if !found.contains(name) { found.append(name) }
-        }
-        return found
+        Placeholders.unsupported(in: text)
     }
 }

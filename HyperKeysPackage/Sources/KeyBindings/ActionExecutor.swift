@@ -27,6 +27,14 @@ public final class ActionExecutor {
     public var onShowEmojiPicker: (() -> Void)?
     /// Shows the Snippets panel; provided by the app layer.
     public var onShowSnippets: (() -> Void)?
+    /// Shows Clipboard History; provided by the app layer.
+    public var onShowClipboardHistory: (() -> Void)?
+    /// Shows the process list; provided by the app layer.
+    public var onShowKillProcess: (() -> Void)?
+    /// Shows Search Menu Items; provided by the app layer.
+    public var onShowMenuSearch: (() -> Void)?
+    /// Opens a quicklink by name (asking for any arguments); provided by the app layer.
+    public var onOpenQuicklink: ((String) -> Void)?
 
     public init(bindingStore: BindingStore) {
         self.bindingStore = bindingStore
@@ -81,6 +89,26 @@ public final class ActionExecutor {
         case .snippets:
             actionLog("Showing Snippets")
             onShowSnippets?()
+
+        case .clipboardHistory:
+            actionLog("Showing Clipboard History")
+            onShowClipboardHistory?()
+
+        case .killProcess:
+            actionLog("Showing Kill Process")
+            onShowKillProcess?()
+
+        case .menuSearch:
+            actionLog("Showing Search Menu Items")
+            onShowMenuSearch?()
+
+        case .quicklink(let name):
+            actionLog("Opening quicklink \(name)")
+            onOpenQuicklink?(name)
+
+        case .system(let action):
+            actionLog("System: \(action.title)")
+            SystemCommands.run(action)
 
         case .none:
             break

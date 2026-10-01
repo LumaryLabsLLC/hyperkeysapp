@@ -151,6 +151,12 @@ struct SnippetsPanelView: View {
                     .font(.system(size: 14))
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                if let keyword = snippet.keyword {
+                    Text(keyword)
+                        .font(.system(size: 11).monospaced())
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
             }
             .padding(.horizontal, 8)
             .frame(height: 40)

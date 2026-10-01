@@ -642,6 +642,7 @@ struct ReadmeConfigExampleTests {
     { "key": "l", "window": "rightHalf" },
     { "key": "d", "menu": { "app": "com.google.Chrome", "path": ["View", "Developer", "Developer Tools"] } },
     { "key": "f", "openFolder": "~/Downloads" },
+    { "key": "g", "quicklink": "Search GitHub" },
     { "key": "space", "command": "appSearch" },
     { "key": "tab", "command": "appSwitcher" }
   ],
@@ -651,6 +652,9 @@ struct ReadmeConfigExampleTests {
   "snippets": [
     { "name": "Linkedin", "text": "https://linkedin.com/in/you", "tags": ["social"] },
     { "name": "Sign-off", "text": "Thanks,\nYou\n\nSent {date}" }
+  ],
+  "quicklinks": [
+    { "name": "Search GitHub", "link": "https://github.com/search?q={argument name=\"query\"}" }
   ]
 }
 """#
@@ -658,8 +662,9 @@ struct ReadmeConfigExampleTests {
     @Test func readmeExampleLoadsWithoutWarnings() throws {
         let (settings, warnings) = ConfigCodec.settings(from: try ConfigCodec.decode(Data(example.utf8)))
         #expect(warnings.isEmpty, "\(warnings)")
-        #expect(settings.bindings.count == 8)
+        #expect(settings.bindings.count == 9)
         #expect(settings.snippets.count == 2)
+        #expect(settings.quicklinks.map(\.name) == ["Search GitHub"])
         #expect(settings.snippets.last?.text == "Thanks,\nYou\n\nSent {date}")
         #expect(settings.profiles.first?.name == "Gaming")
         #expect(settings.windowGap == .small)

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum WindowPositionCategory: String, CaseIterable, Sendable {
-    case halves, quarters, thirds, fourths, sixths, special
+    case halves, quarters, thirds, fourths, sixths, special, move
 
     public var displayName: String {
         switch self {
@@ -11,6 +11,7 @@ public enum WindowPositionCategory: String, CaseIterable, Sendable {
         case .fourths: "Fourths"
         case .sixths: "Sixths"
         case .special: "Other"
+        case .move: "Move & Display"
         }
     }
 
@@ -25,6 +26,7 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
     case rightHalf
     case topHalf
     case bottomHalf
+    case centerHalf
     // Quarters
     case topLeftQuarter
     case topRightQuarter
@@ -36,6 +38,7 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
     case lastThird
     case firstTwoThirds
     case lastTwoThirds
+    case centerTwoThirds
     // Sixths
     case topLeftSixth
     case topCenterSixth
@@ -48,12 +51,24 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
     case secondFourth
     case thirdFourth
     case lastFourth
+    case firstThreeFourths
+    case lastThreeFourths
     // Special
     case fullScreen
     case center
     case maximizeHeight
     case maximizeWidth
     case reasonableSize
+    case almostMaximize
+    // Moves (keep the window's size, or act on it as a whole)
+    case moveLeft
+    case moveRight
+    case moveUp
+    case moveDown
+    case nextDisplay
+    case previousDisplay
+    case toggleFullScreen
+    case restore
 
     public var displayName: String {
         switch self {
@@ -61,6 +76,7 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
         case .rightHalf: "Right Half"
         case .topHalf: "Top Half"
         case .bottomHalf: "Bottom Half"
+        case .centerHalf: "Center Half"
         case .topLeftQuarter: "Top Left"
         case .topRightQuarter: "Top Right"
         case .bottomLeftQuarter: "Bottom Left"
@@ -70,6 +86,7 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
         case .lastThird: "Last Third"
         case .firstTwoThirds: "First 2/3"
         case .lastTwoThirds: "Last 2/3"
+        case .centerTwoThirds: "Center 2/3"
         case .topLeftSixth: "Top Left 6th"
         case .topCenterSixth: "Top Center 6th"
         case .topRightSixth: "Top Right 6th"
@@ -80,29 +97,57 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
         case .secondFourth: "Second Fourth"
         case .thirdFourth: "Third Fourth"
         case .lastFourth: "Last Fourth"
-        case .fullScreen: "Full Screen"
+        case .firstThreeFourths: "First 3/4"
+        case .lastThreeFourths: "Last 3/4"
+        case .fullScreen: "Maximize"
         case .center: "Center"
         case .maximizeHeight: "Max Height"
         case .maximizeWidth: "Max Width"
         case .reasonableSize: "Reasonable Size"
+        case .almostMaximize: "Almost Maximize"
+        case .moveLeft: "Move Left"
+        case .moveRight: "Move Right"
+        case .moveUp: "Move Up"
+        case .moveDown: "Move Down"
+        case .nextDisplay: "Next Display"
+        case .previousDisplay: "Previous Display"
+        case .toggleFullScreen: "Toggle Full Screen"
+        case .restore: "Restore"
+        }
+    }
+
+    /// For moves, which have no area to draw: an SF Symbol instead.
+    public var symbol: String? {
+        switch self {
+        case .moveLeft: "arrow.left.to.line"
+        case .moveRight: "arrow.right.to.line"
+        case .moveUp: "arrow.up.to.line"
+        case .moveDown: "arrow.down.to.line"
+        case .nextDisplay: "arrow.right.circle"
+        case .previousDisplay: "arrow.left.circle"
+        case .toggleFullScreen: "arrow.up.left.and.arrow.down.right"
+        case .restore: "arrow.uturn.backward"
+        default: nil
         }
     }
 
     public var category: WindowPositionCategory {
         switch self {
-        case .leftHalf, .rightHalf, .topHalf, .bottomHalf:
+        case .leftHalf, .rightHalf, .topHalf, .bottomHalf, .centerHalf:
             .halves
         case .topLeftQuarter, .topRightQuarter, .bottomLeftQuarter, .bottomRightQuarter:
             .quarters
-        case .firstThird, .centerThird, .lastThird, .firstTwoThirds, .lastTwoThirds:
+        case .firstThird, .centerThird, .lastThird, .firstTwoThirds, .lastTwoThirds, .centerTwoThirds:
             .thirds
         case .topLeftSixth, .topCenterSixth, .topRightSixth,
              .bottomLeftSixth, .bottomCenterSixth, .bottomRightSixth:
             .sixths
-        case .firstFourth, .secondFourth, .thirdFourth, .lastFourth:
+        case .firstFourth, .secondFourth, .thirdFourth, .lastFourth, .firstThreeFourths, .lastThreeFourths:
             .fourths
-        case .fullScreen, .center, .maximizeHeight, .maximizeWidth, .reasonableSize:
+        case .fullScreen, .almostMaximize, .center, .maximizeHeight, .maximizeWidth, .reasonableSize:
             .special
+        case .moveLeft, .moveRight, .moveUp, .moveDown, .nextDisplay, .previousDisplay, .toggleFullScreen, .restore:
+            .move
         }
     }
 
@@ -114,6 +159,7 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
         case .rightHalf:        CGRect(x: 0.5, y: 0, width: 0.5, height: 1)
         case .topHalf:          CGRect(x: 0, y: 0, width: 1, height: 0.5)
         case .bottomHalf:       CGRect(x: 0, y: 0.5, width: 1, height: 0.5)
+        case .centerHalf:       CGRect(x: 0.25, y: 0, width: 0.5, height: 1)
         // Quarters
         case .topLeftQuarter:     CGRect(x: 0, y: 0, width: 0.5, height: 0.5)
         case .topRightQuarter:    CGRect(x: 0.5, y: 0, width: 0.5, height: 0.5)
@@ -125,6 +171,7 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
         case .lastThird:       CGRect(x: 2.0 / 3, y: 0, width: 1.0 / 3, height: 1)
         case .firstTwoThirds:  CGRect(x: 0, y: 0, width: 2.0 / 3, height: 1)
         case .lastTwoThirds:   CGRect(x: 1.0 / 3, y: 0, width: 2.0 / 3, height: 1)
+        case .centerTwoThirds: CGRect(x: 1.0 / 6, y: 0, width: 2.0 / 3, height: 1)
         // Sixths
         case .topLeftSixth:      CGRect(x: 0, y: 0, width: 1.0 / 3, height: 0.5)
         case .topCenterSixth:    CGRect(x: 1.0 / 3, y: 0, width: 1.0 / 3, height: 0.5)
@@ -137,12 +184,17 @@ public enum WindowPosition: String, Codable, CaseIterable, Sendable {
         case .secondFourth: CGRect(x: 0.25, y: 0, width: 0.25, height: 1)
         case .thirdFourth:  CGRect(x: 0.5, y: 0, width: 0.25, height: 1)
         case .lastFourth:   CGRect(x: 0.75, y: 0, width: 0.25, height: 1)
+        case .firstThreeFourths: CGRect(x: 0, y: 0, width: 0.75, height: 1)
+        case .lastThreeFourths:  CGRect(x: 0.25, y: 0, width: 0.75, height: 1)
         // Special
         case .fullScreen:      CGRect(x: 0, y: 0, width: 1, height: 1)
         case .center:          CGRect(x: 0.2, y: 0.15, width: 0.6, height: 0.7)
         case .maximizeHeight:  CGRect(x: 0.2, y: 0, width: 0.6, height: 1)
         case .maximizeWidth:   CGRect(x: 0, y: 0.2, width: 1, height: 0.6)
         case .reasonableSize:  CGRect(x: 0.2, y: 0.1, width: 0.6, height: 0.8)
+        case .almostMaximize:  CGRect(x: 0.05, y: 0.05, width: 0.9, height: 0.9)
+        case .moveLeft, .moveRight, .moveUp, .moveDown, .nextDisplay, .previousDisplay, .toggleFullScreen, .restore:
+            nil
         }
     }
 }

@@ -41,6 +41,8 @@ public struct RaycastImportPlan: Sendable {
     public private(set) var skipped: [Skipped] = []
     /// Shortcuts and snippets HyperKeys already has exactly.
     public private(set) var alreadyPresent = 0
+    /// Links for Raycast quicklinks that shortcuts point at, by name, created on import if missing.
+    public private(set) var quicklinkLinks: [String: String] = [:]
 
     public var isEmpty: Bool { shortcuts.isEmpty && snippets.isEmpty }
     public var keywordCount: Int { snippets.count { $0.keyword != nil } }
@@ -79,6 +81,9 @@ public struct RaycastImportPlan: Sendable {
             let key = KeyCode(rawValue: UInt16(clamping: hotkey.keyCode))
             let raycastShortcut = hotkey.modifiers.symbols + (key?.displayLabel ?? "Key \(hotkey.keyCode)")
             let mapping = Self.map(hotkey.target, resolveApp: resolveApp)
+            if case .quicklink(let name, let link) = hotkey.target, case .action(.quicklink, _) = mapping {
+                quicklinkLinks[name] = link
+            }
 
             guard case .action(let action, let title) = mapping else {
                 if case .skip(let title, let reason) = mapping {
@@ -143,7 +148,8 @@ public struct RaycastImportPlan: Sendable {
             if let path = localPath(link) {
                 return .action(.openFolder(path: path), title: name)
             }
-            return .skip(title: name, reason: "HyperKeys shortcuts can’t open web links")
+            // Brought over as a HyperKeys quicklink of the same name (created on import if missing).
+            return .action(.quicklink(name: name), title: name)
 
         case .command(let extensionId, let id, let title):
             let name = title ?? readableName(id: id, extensionId: extensionId)
@@ -151,7 +157,7 @@ public struct RaycastImportPlan: Sendable {
             let all = normalized(extensionId) + command
 
             if all.contains("clipboardhistory") {
-                return .skip(title: name, reason: "HyperKeys doesn’t keep clipboard history")
+                return .action(.clipboardHistory, title: name)
             }
             if all.contains("emoji") {
                 return .action(.emojiPicker, title: name)
@@ -164,6 +170,33 @@ public struct RaycastImportPlan: Sendable {
             }
             if command.hasSuffix("switchwindows") || command.hasSuffix("switchwindow") {
                 return .action(.appSwitcher, title: name)
+            }
+            if command.hasSuffix("killprocess") {
+                return .action(.killProcess, title: name)
+            }
+            if command.hasSuffix("searchmenuitems") || command.hasSuffix("searchmenubaritems") {
+                return .action(.menuSearch, title: name)
+            }
+            if command.hasSuffix("caffeinate") {
+                return .action(.system(.caffeinate), title: name)
+            }
+            let systemCommands: [(suffix: String, action: SystemAction)] = [
+                ("lockscreen", .lockScreen), ("logout", .logOut), ("shutdown", .shutDown),
+                ("restart", .restart), ("sleepdisplays", .sleepDisplays), ("sleep", .sleep),
+                ("screensaver", .screenSaver), ("playpause", .playPause), ("nexttrack", .nextTrack),
+                ("previoustrack", .previousTrack), ("togglemicrophonemute", .toggleMicrophone),
+                ("togglemute", .toggleMute), ("volumeup", .volumeUp), ("volumedown", .volumeDown),
+                ("setvolumeto0", .volume0), ("setvolumeto25", .volume25), ("setvolumeto50", .volume50),
+                ("setvolumeto75", .volume75), ("setvolumeto100", .volume100),
+                ("togglesystemappearance", .toggleDarkMode), ("opentrash", .openTrash),
+                ("ejectalldisks", .ejectAllDisks), ("togglehiddenfiles", .toggleHiddenFiles),
+                ("hideallappsexceptfrontmost", .hideOtherApps), ("unhideallhiddenapps", .unhideAllApps),
+                ("quitallappsexceptfrontmost", .quitOtherApps), ("quitallapps", .quitAllApps),
+                ("quitallapplications", .quitAllApps),
+            ]
+            if !all.contains("windowmanagement"),
+               let match = systemCommands.first(where: { command.hasSuffix($0.suffix) }) {
+                return .action(.system(match.action), title: name)
             }
             if all.contains("windowmanagement") {
                 if let position = windowPosition(command) {
@@ -180,19 +213,21 @@ public struct RaycastImportPlan: Sendable {
     private static let windowCommands: [(name: String, position: WindowPosition?)] = {
         let table: [String: WindowPosition?] = [
             "lefthalf": .leftHalf, "righthalf": .rightHalf, "tophalf": .topHalf, "bottomhalf": .bottomHalf,
-            "centerhalf": nil,
+            "centerhalf": .centerHalf,
             "topleftquarter": .topLeftQuarter, "toprightquarter": .topRightQuarter,
             "bottomleftquarter": .bottomLeftQuarter, "bottomrightquarter": .bottomRightQuarter,
             "firstthird": .firstThird, "centerthird": .centerThird, "lastthird": .lastThird,
-            "firsttwothirds": .firstTwoThirds, "centertwothirds": nil, "lasttwothirds": .lastTwoThirds,
+            "firsttwothirds": .firstTwoThirds, "centertwothirds": .centerTwoThirds, "lasttwothirds": .lastTwoThirds,
             "firstfourth": .firstFourth, "secondfourth": .secondFourth, "thirdfourth": .thirdFourth, "lastfourth": .lastFourth,
-            "firstthreefourths": nil, "centerthreefourths": nil, "lastthreefourths": nil,
+            "firstthreefourths": .firstThreeFourths, "centerthreefourths": nil, "lastthreefourths": .lastThreeFourths,
             "topleftsixth": .topLeftSixth, "topcentersixth": .topCenterSixth, "toprightsixth": .topRightSixth,
             "bottomleftsixth": .bottomLeftSixth, "bottomcentersixth": .bottomCenterSixth, "bottomrightsixth": .bottomRightSixth,
-            "maximize": .fullScreen, "almostmaximize": nil,
+            "maximize": .fullScreen, "almostmaximize": .almostMaximize,
             "maximizewidth": .maximizeWidth, "maximizeheight": .maximizeHeight,
             "center": .center, "reasonablesize": .reasonableSize,
-            "togglefullscreen": nil, "restore": nil,
+            "togglefullscreen": .toggleFullScreen, "restore": .restore,
+            "moveleft": .moveLeft, "moveright": .moveRight, "moveup": .moveUp, "movedown": .moveDown,
+            "nextdisplay": .nextDisplay, "previousdisplay": .previousDisplay,
         ]
         return table.map { ($0.key, $0.value) }.sorted { $0.name.count > $1.name.count }
     }()
@@ -287,7 +322,7 @@ public struct RaycastImportPlan: Sendable {
 
             snippets.append(SnippetItem(
                 id: index,
-                snippet: Snippet(name: finalName, text: raycast.text),
+                snippet: Snippet(name: finalName, text: raycast.text, keyword: raycast.keyword),
                 originalName: finalName == name ? nil : name,
                 keyword: raycast.keyword,
                 unsupportedPlaceholders: SnippetStore.unsupportedPlaceholders(in: raycast.text)
@@ -304,10 +339,20 @@ public struct RaycastImportPlan: Sendable {
         shortcuts chosenShortcuts: Set<Int>,
         snippets chosenSnippets: Set<Int>,
         bindingStore: BindingStore,
-        snippetStore: SnippetStore
+        snippetStore: SnippetStore,
+        quicklinkStore: QuicklinkStore = .shared
     ) -> (shortcuts: Int, snippets: Int) {
         let newBindings = shortcuts.filter { chosenShortcuts.contains($0.id) }.map { (key: $0.key, action: $0.action) }
         let newSnippets = snippets.filter { chosenSnippets.contains($0.id) }.map(\.snippet)
+        // Shortcuts to Raycast quicklinks need the quicklink itself.
+        let missingQuicklinks = newBindings.compactMap { binding -> Quicklink? in
+            guard case .quicklink(let name) = binding.action, quicklinkStore.quicklink(named: name) == nil,
+                  let link = quicklinkLinks[name] else { return nil }
+            return Quicklink(name: name, link: link)
+        }
+        if !missingQuicklinks.isEmpty {
+            quicklinkStore.add(missingQuicklinks)
+        }
         if !newBindings.isEmpty {
             bindingStore.assign(newBindings)
         }

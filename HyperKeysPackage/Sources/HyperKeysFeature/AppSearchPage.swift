@@ -18,7 +18,7 @@ struct AppSearchPage: View {
         PageScroll {
             PageHeader(
                 pane: .appSearch,
-                subtitle: "Open any app, jump between open ones, or paste an emoji — from anywhere."
+                subtitle: "Open any app, jump between open ones, paste an emoji, or quit a stuck process — from anywhere."
             )
 
             featureCard(
@@ -47,6 +47,18 @@ struct AppSearchPage: View {
                 action: .emojiPicker,
                 detail: "Search emoji and symbols — arrows, math, currency, ⌘⌥⇧ keys. Return pastes into the app you were in; ⌘Return copies.",
                 tryIt: { EmojiPickerController.shared.show() }
+            )
+
+            featureCard(
+                action: .menuSearch,
+                detail: "Find any menu command in the app you're using and run it. Shortcuts show on the right, so you learn them as you go.",
+                tryIt: { MenuSearchController.shared.show() }
+            )
+
+            featureCard(
+                action: .killProcess,
+                detail: "Every app and process, by CPU or memory. Return quits the one you pick; ⌘Return force quits it.",
+                tryIt: { KillProcessController.shared.show() }
             )
 
             VStack(alignment: .leading, spacing: 10) {

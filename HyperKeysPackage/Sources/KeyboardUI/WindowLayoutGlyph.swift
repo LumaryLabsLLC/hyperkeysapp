@@ -38,6 +38,12 @@ public struct WindowLayoutGlyph: View {
                         .fill(isActive ? AnyShapeStyle(color.gradient) : AnyShapeStyle(.secondary.opacity(0.55)))
                         .frame(width: target.width, height: target.height)
                         .offset(x: target.minX, y: target.minY)
+                } else if let symbol = position.symbol {
+                    // Moves have no area to fill; show what they do instead.
+                    Image(systemName: symbol)
+                        .font(.system(size: min(size.width, size.height) * 0.5, weight: .semibold))
+                        .foregroundStyle(isActive ? AnyShapeStyle(color) : AnyShapeStyle(.secondary))
+                        .frame(width: size.width, height: size.height)
                 }
             }
         }

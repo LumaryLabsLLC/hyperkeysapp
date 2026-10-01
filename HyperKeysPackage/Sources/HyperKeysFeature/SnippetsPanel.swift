@@ -74,6 +74,7 @@ final class SnippetsPanelModel {
             // Name matches first, then tags, then the text itself.
             let ranked = pool.compactMap { snippet -> (Snippet, Int)? in
                 let name = snippet.name.lowercased()
+                if snippet.keyword?.lowercased() == needle { return (snippet, 4) }
                 if name.hasPrefix(needle) { return (snippet, 3) }
                 if name.contains(needle) { return (snippet, 2) }
                 if snippet.tags.contains(where: { $0.lowercased().contains(needle) }) { return (snippet, 1) }
@@ -155,10 +156,15 @@ public final class SnippetsPanelController {
     }
 
     func insert(_ snippet: Snippet, paste: Bool) {
-        let text = SnippetStore.expand(snippet.text, clipboard: NSPasteboard.general.string(forType: .string))
-        model.store.recordUse(of: snippet)
+        let app = host?.previousApp
+        let store = model.store
         host?.hide(restoringFocus: true)
-        TextPaster.deliver(text, paste: paste)
+        Task {
+            // Asks for any {argument}s, reads {selection}, fills in the rest.
+            guard let text = await PlaceholderFiller.fill(snippet.text, title: snippet.name, app: app) else { return }
+            store.recordUse(of: snippet)
+            TextPaster.deliver(text, paste: paste)
+        }
     }
 
     /// Opens the Snippets page to create a new snippet, or edit one.
@@ -179,6 +185,7 @@ public final class SnippetsPanelController {
         )
         let host = FloatingPanelHost(width: SnippetsPanelView.width, rootView: root)
         host.topFraction = 0.18
+        host.settingsPane = .snippets
         host.onKeyDown = { [weak self] event in
             self?.handleKey(event) ?? false
         }

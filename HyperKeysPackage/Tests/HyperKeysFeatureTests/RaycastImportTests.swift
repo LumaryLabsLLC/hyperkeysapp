@@ -185,16 +185,17 @@ struct RaycastImportPlanTests {
         #expect(actions[.e] == .emojiPicker)
         #expect(actions[.f] == .openFolder(path: "~/Downloads"))
         #expect(actions[.space] == .appSearch)
+        #expect(actions[.v] == .clipboardHistory)
 
-        // Almost Maximize isn't Maximize, and clipboard history has no equivalent.
-        #expect(actions[.m] == nil)
-        #expect(Set(plan.skipped.map(\.title)) == ["Almost Maximize", "Clipboard History"])
+        // Almost Maximize isn't Maximize.
+        #expect(actions[.m] == .windowAction(.almostMaximize))
+        #expect(plan.skipped.isEmpty)
     }
 
     @Test func suggestsOnlyHyperShortcutsThatReplaceNothing() throws {
         let plan = try plan(bindings: [KeyBinding(keyCode: .h, action: .windowAction(.rightHalf))])
         let suggested = Set(plan.shortcuts.filter { plan.suggestedShortcuts.contains($0.id) }.map(\.key))
-        #expect(suggested == [.t, .e, .f])
+        #expect(suggested == [.t, .e, .f, .v, .m])
 
         let raycast = try #require(plan.shortcuts.first { $0.key == .space })
         #expect(!raycast.usesHyper)
@@ -234,7 +235,9 @@ struct RaycastImportPlanTests {
     @Test func readsWindowCommandsInAnySpelling() {
         #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("windowManagementTopLeftSixth")) == .topLeftSixth)
         #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("e:r:window-management::maximize")) == .fullScreen)
-        #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("last-three-fourths")) == nil)
+        #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("last-three-fourths")) == .lastThreeFourths)
+        #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("center-three-fourths")) == nil)
+        #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("next-display")) == .nextDisplay)
         #expect(RaycastImportPlan.windowPosition(RaycastImportPlan.normalized("first-two-thirds")) == .firstTwoThirds)
     }
 
@@ -256,8 +259,8 @@ struct RaycastPlaceholderTests {
     }
 
     @Test func reportsPlaceholdersItCantFill() {
-        let text = "Hi {argument name=\"who\"}, {clipboard} {date offset=\"+1d\"} {snippet name=\"x\"} {argument}"
-        #expect(SnippetStore.unsupportedPlaceholders(in: text) == ["{argument}", "{date}", "{snippet}"])
-        #expect(SnippetStore.unsupportedPlaceholders(in: "{date format=\"HH:mm\"} {cursor}").isEmpty)
+        let text = "Hi {argument name=\"who\"}, {clipboard} {browser-tab} {date offset=\"+1d\"} {calculator}"
+        #expect(SnippetStore.unsupportedPlaceholders(in: text) == ["{browser-tab}", "{calculator}"])
+        #expect(SnippetStore.unsupportedPlaceholders(in: "{date format=\"HH:mm\"} {cursor} {selection}").isEmpty)
     }
 }

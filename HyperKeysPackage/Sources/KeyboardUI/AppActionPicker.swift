@@ -11,6 +11,7 @@ struct AppActionPicker: View {
     let onAssign: (BoundAction) -> Void
 
     @State private var provider = InstalledAppProvider.shared
+    @State private var quicklinks = QuicklinkStore.shared
     @State private var query = ""
     @State private var runningApps: [AppInfo] = []
     @State private var isMultiSelect = false
@@ -32,7 +33,20 @@ struct AppActionPicker: View {
                         builtInRow(.appSwitcher, subtitle: "Switch between open apps and windows")
                         builtInRow(.emojiPicker, subtitle: "Search and paste emoji and symbols")
                         builtInRow(.snippets, subtitle: "Search and paste your snippets")
+                        builtInRow(.clipboardHistory, subtitle: "Search and paste what you've copied")
+                        builtInRow(.killProcess, subtitle: "Quit or force quit a running app or process")
+                        builtInRow(.menuSearch, subtitle: "Find and run any menu command in the app you're in")
                         builtInRow(.emptyTrash, subtitle: "Empty the Trash (asks first)")
+                        if !quicklinks.quicklinks.isEmpty {
+                            PickerSectionHeader(title: "Quicklinks")
+                            ForEach(quicklinks.quicklinks) { quicklink in
+                                builtInRow(.quicklink(name: quicklink.name), subtitle: quicklink.displayLink)
+                            }
+                        }
+                        PickerSectionHeader(title: "System")
+                        ForEach(SystemAction.allCases, id: \.self) { action in
+                            builtInRow(.system(action), subtitle: action.detail)
+                        }
                     }
                     if query.isEmpty {
                         if !runningApps.isEmpty {
@@ -67,10 +81,11 @@ struct AppActionPicker: View {
     private func builtInRow(_ action: BoundAction, subtitle: String) -> some View {
         let isCurrent = currentAction == action
         let kind = ActionKind(action) ?? .app
-        return PickerRow(title: kind.title, subtitle: subtitle, isSelected: isCurrent) {
+        let presentation = BindingPresentation(action)
+        return PickerRow(title: presentation?.title ?? kind.title, subtitle: subtitle, isSelected: isCurrent) {
             onAssign(action)
         } leading: {
-            IconTile(symbol: kind.symbol, color: kind.color, size: 24)
+            IconTile(symbol: presentation?.symbol ?? kind.symbol, color: kind.color, size: 24)
         } trailing: {
             if isCurrent {
                 Image(systemName: "checkmark")

@@ -26,13 +26,20 @@ On the **Shortcuts** page, click a key on the keyboard, or just press it, to giv
 - snap the window you're using to a layout
 - run a menu command in any app
 - open a folder
-- open App Search, the App Switcher, Emoji & Symbols or Snippets, or empty the Trash
+- open App Search, the App Switcher, Emoji & Symbols, Snippets, Clipboard History or Kill Process
+- lock the screen, sleep, log out, restart, shut down, empty the Trash, or keep your Mac awake
 
 ## Features
 
 ### Window Management
 
-Snap the window you're using to halves, quarters, thirds, fourths or sixths. You can also center it or fill the screen. Give each layout a key on the **Windows** page, and choose how much space to leave between tiled windows.
+Snap the window you're using to halves, quarters, thirds, two-thirds, fourths, three-fourths or sixths, or center it, maximize it or almost maximize it. You can also:
+- move it to the next or previous display
+- push it against an edge without resizing it
+- toggle macOS full screen
+- **Restore** it to where it was before
+
+Give each layout or move a key on the **Windows** page, and choose how much space to leave between tiled windows. Turn on **Repeat Left or Right Half** to make a second press go from ½ to ⅔ to ⅓ of the screen.
 
 ![Window layouts](pics/windows.png)
 
@@ -56,9 +63,40 @@ Every emoji, plus arrows, math, currency and ⌘⌥⇧ key symbols, with the one
 
 ### Snippets
 
-Save text you type often and paste it anywhere. Search by name, tag or text. **Return** pastes into the app you were in, and **⌘Return** copies. Placeholders like `{clipboard}` and `{date}` are filled in when you paste.
+Save text you type often and paste it anywhere. Search by name, keyword, tag or text. **Return** pastes into the app you were in, and **⌘Return** copies.
+
+Give a snippet a **keyword**, like `;addr`, and typing it anywhere replaces it with the snippet. It never fires in password fields, or while you're typing in HyperKeys. Placeholders like `{clipboard}`, `{date}` and `{argument}` are filled in either way, and `{argument}` asks you for a value first.
 
 ![Snippets](pics/snippets.png)
+
+### Quicklinks
+
+Save the websites, folders and app links you open often, on the **Quicklinks** page. Open them from App Search or give each one a Hyper key. Add `{argument}` to a link and HyperKeys asks for the value when you open it. For example, `https://github.com/search?q={argument}` searches GitHub for whatever you type.
+
+### Search Menu Items
+
+Find any menu command in the app you're using and press Return to run it. Each item shows its own keyboard shortcut, so you learn them as you go. Open it from App Search, the menu bar, or a Hyper key you set on the **Search & Switch** page.
+
+### Clipboard History
+
+Everything you copy (text, links, images and files) is kept, so you can search it and paste it again. Open it with a Hyper shortcut or a regular one like **⇧⌘V**, both set on the **Clipboard** page. **Return** pastes into the app you were in, **⌘Return** copies, **⌘1–9** pastes by position, and **⌘P** pins.
+
+History stays on this Mac. It isn't in `config.json` and isn't synced. Passwords and anything else an app marks as private are never saved, and password managers are left out from the start. You choose how long to keep it, from a day to a year.
+
+### Kill Process
+
+Every app and process with its CPU and memory use. An app's helper processes are grouped with it. Sort by CPU, memory or name, filter by name, then press **Return** to quit or **⌘Return** to force quit. Open it from App Search, the menu bar, or a Hyper shortcut on the **Search & Switch** page.
+
+### System Commands
+
+Type "system" in App Search to see them all, or give any of them a Hyper key:
+
+- **Power:** Lock Screen, Sleep, Sleep Displays, Show Screen Saver, Log Out, Restart, Shut Down
+- **Audio:** Play / Pause, Next Track, Previous Track, Toggle Mute, Turn Volume Up and Down, Set Volume to 0–100%, Toggle Microphone Mute
+- **Appearance and files:** Toggle System Appearance (Dark Mode), Open Trash, Empty Trash, Eject All Disks, Toggle Hidden Files
+- **Apps:** Hide All Apps Except Frontmost, Unhide All Hidden Apps, Quit All Apps, Quit All Apps Except Frontmost, Kill Process
+
+Log Out, Restart and Shut Down ask first, the same way the Apple menu does. Empty Trash and the two Quit All commands ask first too. **Caffeinate** keeps your Mac awake until you turn it off. Find it in App Search, on a Hyper key, or as **Keep Mac Awake** in the menu bar.
 
 ### Choosing the Hyper Key
 
@@ -96,6 +134,7 @@ Edit it by hand or keep it in your dotfiles. HyperKeys reloads it whenever it ch
     { "key": "l", "window": "rightHalf" },
     { "key": "d", "menu": { "app": "com.google.Chrome", "path": ["View", "Developer", "Developer Tools"] } },
     { "key": "f", "openFolder": "~/Downloads" },
+    { "key": "g", "quicklink": "Search GitHub" },
     { "key": "space", "command": "appSearch" },
     { "key": "tab", "command": "appSwitcher" }
   ],
@@ -105,6 +144,9 @@ Edit it by hand or keep it in your dotfiles. HyperKeys reloads it whenever it ch
   "snippets": [
     { "name": "Linkedin", "text": "https://linkedin.com/in/you", "tags": ["social"] },
     { "name": "Sign-off", "text": "Thanks,\nYou\n\nSent {date}" }
+  ],
+  "quicklinks": [
+    { "name": "Search GitHub", "link": "https://github.com/search?q={argument name=\"query\"}" }
   ]
 }
 ```
@@ -115,8 +157,20 @@ Edit it by hand or keep it in your dotfiles. HyperKeys reloads it whenever it ch
 | `windowGap` | `none`, `small`, `medium`, `large`, `extraLarge` |
 | `appSwitcher` | `hold` (⌘-Tab style) or `stayOpen` (navigate with h j k l) |
 | `key` | `a`–`z`, `0`–`9`, `f1`–`f12`, `space`, `tab`, `return`, `delete`, `left`, `right`, `up`, `down`, `backtick`, `minus`, `equals`, `leftBracket`, `rightBracket`, `backslash`, `semicolon`, `quote`, `comma`, `period`, `slash` |
-| action | one of `openApp` (bundle id), `openApps`, `window` (a layout such as `leftHalf`, `center`, `topRightSixth`), `menu`, `openFolder` (a path; `~` works), or `command` (`appSearch`, `appSwitcher`, `emojiPicker`, `snippets`, `emptyTrash`) |
-| `snippets` | `name`, `text` and optional `tags`. `{clipboard}`, `{date}`, `{time}`, `{datetime}`, `{day}` and `{uuid}` are filled in when you paste; dates take a format, like `{date format="yyyy-MM-dd"}`. `{cursor}` is removed. |
+| action | one of `openApp` (bundle id), `openApps`, `window` (a layout or move such as `leftHalf`, `center`, `topRightSixth`, `nextDisplay`, `restore`), `menu`, `openFolder` (a path; `~` works), `quicklink` (a quicklink's name), or `command` (`appSearch`, `appSwitcher`, `emojiPicker`, `snippets`, `clipboardHistory`, `killProcess`, `menuSearch`, `emptyTrash`, or a system command listed below) |
+| `snippets` | `name`, `text`, and optional `tags` and `keyword` (typed anywhere, it turns into the snippet). Placeholders (below) are filled in when you paste. |
+| `quicklinks` | `name`, `link` (a web address, a path like `~/Projects`, or an app link like `slack://`) and optional `openWith` (bundle id). A shortcut opens one with `"quicklink": "Name"`. |
+
+**Placeholders** work in snippets and quicklinks:
+- `{clipboard}`, plus older copies with `{clipboard offset=1}`
+- `{selection}`, the text selected in the app you're in
+- `{argument}`, which asks you for a value. Name it with `name="query"`, and add `default="…"` or `options="a, b"`.
+- `{date}`, `{time}`, `{datetime}` and `{day}`, which take `format="yyyy-MM-dd"`, `offset="+2d"` and `locale="fr-FR"`
+- `{uuid}`, `{snippet name="Signature"}`, and `{cursor}` (removed)
+
+Add modifiers with `|`: `{clipboard | trim | uppercase}`. The others are `lowercase`, `percent-encode`, `json-stringify` and `raw`. Values filled into web links are URL-encoded unless you add `| raw`.
+
+System commands: `lockScreen`, `sleep`, `sleepDisplays`, `screenSaver`, `logOut`, `restart`, `shutDown`, `caffeinate`, `playPause`, `nextTrack`, `previousTrack`, `toggleMute`, `volumeUp`, `volumeDown`, `volume0`, `volume25`, `volume50`, `volume75`, `volume100`, `toggleMicrophone`, `toggleDarkMode`, `openTrash`, `ejectAllDisks`, `toggleHiddenFiles`, `hideOtherApps`, `unhideAllApps`, `quitAllApps`, `quitOtherApps`.
 
 `"enabled": false` keeps a shortcut in the file without it doing anything. The `shortcuts` list is the Default profile; `profiles` adds named ones. The active profile is chosen per Mac.
 

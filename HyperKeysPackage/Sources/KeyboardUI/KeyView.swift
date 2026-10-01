@@ -254,8 +254,16 @@ struct KeyView: View {
         switch presentation.kind {
         case .app, .appGroup, .folder:
             AppIconStack(icons: presentation.icons, size: size)
-        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .emptyTrash:
-            Image(systemName: presentation.kind.symbol)
+        case .quicklink:
+            if presentation.icons.isEmpty {
+                Image(systemName: presentation.symbol)
+                    .font(.system(size: size * 0.62, weight: .bold))
+                    .foregroundStyle(presentation.kind.color)
+            } else {
+                AppIconStack(icons: presentation.icons, size: size)
+            }
+        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .emptyTrash, .system:
+            Image(systemName: presentation.symbol)
                 .font(.system(size: size * 0.62, weight: .bold))
                 .foregroundStyle(presentation.kind.color)
         case .window:

@@ -34,11 +34,22 @@ public struct ConfigDocument: Codable, Equatable, Sendable {
     public var profiles: [Profile]?
     /// Text to paste from the Snippets panel. `{clipboard}`, `{date}` and `{time}` are filled in.
     public var snippets: [SnippetEntry]?
+    /// Saved links, folders and deeplinks, opened from App Search or a shortcut.
+    public var quicklinks: [QuicklinkEntry]?
+
+    public struct QuicklinkEntry: Codable, Equatable, Sendable {
+        public var name: String
+        public var link: String
+        /// Bundle id of the app to open it with.
+        public var openWith: String?
+    }
 
     public struct SnippetEntry: Codable, Equatable, Sendable {
         public var name: String
         public var text: String
         public var tags: [String]?
+        /// Typed anywhere, it's replaced by the snippet (";addr").
+        public var keyword: String?
     }
 
     public struct Profile: Codable, Equatable, Sendable {
@@ -58,7 +69,10 @@ public struct ConfigDocument: Codable, Equatable, Sendable {
         public var menu: MenuCommand?
         /// A folder (or file) to open in Finder, e.g. "~/Downloads".
         public var openFolder: String?
-        /// "appSearch", "appSwitcher", "emojiPicker", "snippets" or "emptyTrash".
+        /// The name of a quicklink to open.
+        public var quicklink: String?
+        /// "appSearch", "appSwitcher", "emojiPicker", "snippets", "clipboardHistory", "killProcess", "menuSearch", "emptyTrash",
+        /// "lockScreen", "sleep", "logOut", "restart", "shutDown" or "caffeinate".
         public var command: String?
         /// Display name for `openApp` / `openApps`.
         public var name: String?
@@ -87,13 +101,16 @@ public struct ConfigSettings {
     public var switcherStaysOpen = false
     public var doubleTapOpensWindow = true
     public var snippets: [Snippet] = []
+    public var quicklinks: [Quicklink] = []
 
     public init(
         bindings: [KeyBinding] = [], profiles: [ActionGroup] = [], appGroups: [AppGroup] = [],
         hyperKey: KeyCode = .capsLock, windowGap: WindowGap = .none,
-        switcherStaysOpen: Bool = false, doubleTapOpensWindow: Bool = true, snippets: [Snippet] = []
+        switcherStaysOpen: Bool = false, doubleTapOpensWindow: Bool = true, snippets: [Snippet] = [],
+        quicklinks: [Quicklink] = []
     ) {
         self.snippets = snippets
+        self.quicklinks = quicklinks
         self.bindings = bindings
         self.profiles = profiles
         self.appGroups = appGroups
@@ -148,7 +165,10 @@ public enum ConfigCodec {
                 ConfigDocument.Profile(name: $0.name, shortcuts: shortcuts($0.bindings))
             },
             snippets: settings.snippets.isEmpty ? nil : settings.snippets.map {
-                ConfigDocument.SnippetEntry(name: $0.name, text: $0.text, tags: $0.tags.isEmpty ? nil : $0.tags)
+                ConfigDocument.SnippetEntry(name: $0.name, text: $0.text, tags: $0.tags.isEmpty ? nil : $0.tags, keyword: $0.keyword)
+            },
+            quicklinks: settings.quicklinks.isEmpty ? nil : settings.quicklinks.map {
+                ConfigDocument.QuicklinkEntry(name: $0.name, link: $0.link, openWith: $0.openWith)
             }
         )
     }
@@ -195,9 +215,12 @@ public enum ConfigCodec {
             }
         }
 
+        settings.quicklinks = (document.quicklinks ?? []).map { entry in
+            Quicklink(id: stableID(for: "quicklink:\(entry.name)"), name: entry.name, link: entry.link, openWith: entry.openWith)
+        }
         settings.bindings = bindings(document.shortcuts, in: "shortcuts")
         settings.snippets = (document.snippets ?? []).enumerated().map { index, entry in
-            Snippet(id: stableID(for: "snippet:\(index):\(entry.name)"), name: entry.name, text: entry.text, tags: entry.tags ?? [])
+            Snippet(id: stableID(for: "snippet:\(index):\(entry.name)"), name: entry.name, text: entry.text, tags: entry.tags ?? [], keyword: entry.keyword)
         }
         settings.profiles = (document.profiles ?? []).map { profile in
             ActionGroup(id: stableID(for: "profile:\(profile.name)"), name: profile.name, bindings: bindings(profile.shortcuts, in: "Profile “\(profile.name)”"))
@@ -236,6 +259,16 @@ public enum ConfigCodec {
             shortcut.command = "emptyTrash"
         case .snippets:
             shortcut.command = "snippets"
+        case .clipboardHistory:
+            shortcut.command = "clipboardHistory"
+        case .killProcess:
+            shortcut.command = "killProcess"
+        case .menuSearch:
+            shortcut.command = "menuSearch"
+        case .quicklink(let name):
+            shortcut.quicklink = name
+        case .system(let action):
+            shortcut.command = action.rawValue
         case .none:
             return nil
         }
@@ -283,19 +316,28 @@ public enum ConfigCodec {
         if let folder = shortcut.openFolder {
             return .openFolder(path: folder)
         }
+        if let quicklink = shortcut.quicklink {
+            return .quicklink(name: quicklink)
+        }
         if let command = shortcut.command {
             switch command {
             case "appSearch": return .appSearch
             case "appSwitcher": return .appSwitcher
             case "emojiPicker": return .emojiPicker
             case "snippets": return .snippets
+            case "clipboardHistory": return .clipboardHistory
+            case "killProcess": return .killProcess
+            case "menuSearch": return .menuSearch
             case "emptyTrash": return .emptyTrash
             default:
-                warnings.append("\(label): unknown command “\(command)”. Use appSearch, appSwitcher, emojiPicker, snippets or emptyTrash.")
+                if let action = SystemAction(rawValue: command) {
+                    return .system(action)
+                }
+                warnings.append("\(label): unknown command “\(command)”. Use appSearch, appSwitcher, emojiPicker, snippets, clipboardHistory, killProcess, menuSearch, emptyTrash, or a system command such as lockScreen.")
                 return nil
             }
         }
-        warnings.append("\(label) has no action (openApp, openApps, window, menu, openFolder or command).")
+        warnings.append("\(label) has no action (openApp, openApps, window, menu, openFolder, quicklink or command).")
         return nil
     }
 

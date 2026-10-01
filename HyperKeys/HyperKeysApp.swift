@@ -105,6 +105,19 @@ struct MenuBarMenu: View {
         Button(menuTitle("Snippets…", for: .snippets)) {
             SnippetsPanelController.shared.show()
         }
+        Button(menuTitle("Clipboard History…", for: .clipboardHistory)) {
+            ClipboardHistoryPanelController.shared.show()
+        }
+        Button(menuTitle("Search Menu Items…", for: .menuSearch)) {
+            MenuSearchController.shared.show()
+        }
+        Button(menuTitle("Kill Process…", for: .killProcess)) {
+            KillProcessController.shared.show()
+        }
+        Toggle("Keep Mac Awake", isOn: Binding(
+            get: { Caffeinate.shared.isActive },
+            set: { $0 ? Caffeinate.shared.start() : Caffeinate.shared.stop() }
+        ))
 
         Button("Open HyperKeys…", action: openMainWindow)
             .keyboardShortcut(",")

@@ -6,12 +6,20 @@ public struct MenuItemInfo: Sendable {
     public let path: [String]
     public let children: [MenuItemInfo]
     public let isEnabled: Bool
+    /// The item's own keyboard shortcut, e.g. "⇧⌘N".
+    public let shortcut: String?
 
-    public init(title: String, path: [String], children: [MenuItemInfo] = [], isEnabled: Bool = true) {
+    public init(title: String, path: [String], children: [MenuItemInfo] = [], isEnabled: Bool = true, shortcut: String? = nil) {
         self.title = title
         self.path = path
         self.children = children
         self.isEnabled = isEnabled
+        self.shortcut = shortcut
+    }
+
+    /// Every item that does something (no submenus), in menu order.
+    public var leaves: [MenuItemInfo] {
+        children.isEmpty ? [self] : children.flatMap(\.leaves)
     }
 }
 
@@ -51,7 +59,7 @@ public enum MenuBarReader {
             let path = parentPath + [title]
             let isEnabled = isElementEnabled(child)
             let subItems = readSubmenu(element: child, parentPath: path)
-            items.append(MenuItemInfo(title: title, path: path, children: subItems, isEnabled: isEnabled))
+            items.append(MenuItemInfo(title: title, path: path, children: subItems, isEnabled: isEnabled, shortcut: shortcutLabel(child)))
         }
         return items
     }
@@ -96,6 +104,48 @@ public enum MenuBarReader {
         let result = AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &value)
         guard result == .success else { return nil }
         return value as? String
+    }
+
+    /// "⇧⌘N" from the item's command key, modifiers and glyph.
+    static func shortcutLabel(_ element: AXUIElement) -> String? {
+        var key: String?
+        if let character = stringValue(element, kAXMenuItemCmdCharAttribute),
+           let scalar = character.unicodeScalars.first, character.count == 1,
+           !CharacterSet.controlCharacters.contains(scalar), !(0xE000...0xF8FF).contains(scalar.value) {
+            key = character.uppercased()
+        } else if let glyph = intValue(element, kAXMenuItemCmdGlyphAttribute) {
+            key = glyphSymbols[glyph]
+        }
+        guard let key else { return nil }
+        let modifiers = intValue(element, kAXMenuItemCmdModifiersAttribute) ?? 0
+        return modifierSymbols(modifiers) + key
+    }
+
+    /// kAXMenuItemModifier… flags: Shift 1, Option 2, Control 4, and 8 meaning "no ⌘".
+    static func modifierSymbols(_ flags: Int) -> String {
+        (flags & 4 != 0 ? "⌃" : "") + (flags & 2 != 0 ? "⌥" : "") + (flags & 1 != 0 ? "⇧" : "") + (flags & 8 == 0 ? "⌘" : "")
+    }
+
+    /// Menu glyph codes (Carbon's kMenu…Glyph) for keys that aren't characters.
+    private static let glyphSymbols: [Int: String] = {
+        var map: [Int: String] = [
+            0x02: "⇥", 0x04: "⌤", 0x09: "Space", 0x0A: "⌦", 0x0B: "↩", 0x17: "⌫", 0x1B: "⎋",
+            0x62: "⇞", 0x64: "←", 0x65: "→", 0x66: "↖", 0x68: "↑", 0x69: "↘", 0x6A: "↓", 0x6B: "⇟",
+        ]
+        for n in 1...12 { map[0x6E + n] = "F\(n)" }
+        return map
+    }()
+
+    private static func stringValue(_ element: AXUIElement, _ attribute: String) -> String? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
+        return value as? String
+    }
+
+    private static func intValue(_ element: AXUIElement, _ attribute: String) -> Int? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
+        return (value as? NSNumber)?.intValue
     }
 
     private static func isElementEnabled(_ element: AXUIElement) -> Bool {

@@ -9,6 +9,7 @@ struct WindowsView: View {
     @Bindable var bindingStore: BindingStore
 
     @State private var gap = WindowGap.load()
+    @AppStorage(Preferences.cycleHalves) private var cycleHalves = false
     @State private var conflict: Conflict?
 
     /// A recorded key that's already used by a different shortcut.
@@ -82,6 +83,22 @@ struct WindowsView: View {
                 .frame(width: 128, height: 80)
         }
         .padding(16)
+        .overlay(alignment: .bottom) {
+            Divider().padding(.horizontal, 16)
+        }
+        .padding(.bottom, 0)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Toggle(isOn: $cycleHalves) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Repeat Left or Right Half to change its width")
+                    Text("Each press goes from ½ to ⅔ to ⅓ of the screen, then back to ½.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
         .hkCard()
         .onChange(of: gap) { _, newValue in
             newValue.save()

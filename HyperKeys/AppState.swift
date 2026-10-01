@@ -58,6 +58,12 @@ public final class AppState {
             AppSwitcherController.shared.warmUp()
             EmojiPickerController.shared.warmUp()
             SnippetsPanelController.shared.warmUp()
+            ClipboardHistoryPanelController.shared.warmUp()
+            KillProcessController.shared.warmUp()
+            MenuSearchController.shared.warmUp()
+            ClipboardMonitor.shared.start()
+            GlobalHotKeys.shared.isPaused = self.status.isPaused
+            ClipboardHistoryPanelController.shared.applyHotKey()
         }
     }
 
@@ -81,9 +87,16 @@ public final class AppState {
         executor.onShowAppSwitcher = { AppSwitcherController.shared.shortcutPressed() }
         executor.onShowEmojiPicker = { EmojiPickerController.shared.toggle() }
         executor.onShowSnippets = { SnippetsPanelController.shared.toggle() }
+        executor.onShowClipboardHistory = { ClipboardHistoryPanelController.shared.toggle() }
+        executor.onShowKillProcess = { KillProcessController.shared.toggle() }
+        executor.onShowMenuSearch = { MenuSearchController.shared.toggle() }
+        executor.onOpenQuicklink = { QuicklinkRunner.open(named: $0) }
         actionExecutor = executor
 
         let manager = EventTapManager()
+        manager.onKeyTyped = { key in
+            MainActor.assumeIsolated { KeywordExpander.shared.handle(key) }
+        }
 
         // Caps Lock is remapped to F18 via hidutil at the IOKit level,
         // so the engine listens for F18 while the UI shows Caps Lock.
@@ -198,6 +211,7 @@ public final class AppState {
     func setPaused(_ paused: Bool) {
         guard paused != status.isPaused else { return }
         status.isPaused = paused
+        GlobalHotKeys.shared.isPaused = paused
         if paused {
             stopEventTap()
         } else {

@@ -27,3 +27,21 @@ extension Preferences {
         UserDefaults.standard.bool(forKey: switcherStaysOpen)
     }
 }
+
+extension Preferences {
+    /// Snippet keywords turn into their snippets as you type. On by default.
+    public static let expandSnippetKeywords = "expandSnippetKeywords"
+
+    public static var isSnippetKeywordExpansionEnabled: Bool {
+        UserDefaults.standard.object(forKey: expandSnippetKeywords) as? Bool ?? true
+    }
+}
+
+extension Preferences {
+    /// Pressing Left or Right Half again cycles the width through ½, ⅔ and ⅓. Off by default.
+    public static let cycleHalves = "cycleWindowHalves"
+
+    public static var isCycleHalvesEnabled: Bool {
+        UserDefaults.standard.bool(forKey: cycleHalves)
+    }
+}

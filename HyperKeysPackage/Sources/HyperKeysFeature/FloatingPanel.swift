@@ -49,6 +49,10 @@ final class FloatingPanelHost {
     var onKeyDown: ((NSEvent) -> Bool)?
     /// How far down the screen the top edge sits, as a fraction of the visible height.
     var topFraction: CGFloat = 0.2
+    /// The page ⌘, opens.
+    var settingsPane: Pane = .appSearch
+    /// Called whenever the panel goes away, however it was closed.
+    var onHide: (() -> Void)?
 
     private var keyMonitor: Any?
     private var resignObserver: NSObjectProtocol?
@@ -124,6 +128,7 @@ final class FloatingPanelHost {
             previousApp?.activate()
         }
         previousApp = nil
+        onHide?()
     }
 
     /// Centered horizontally, near the top of the screen the pointer is on.
@@ -148,7 +153,7 @@ final class FloatingPanelHost {
                     // Open the window while HyperKeys still has focus, then close the panel —
                     // closing first lets macOS hand focus back to the previous app, and the
                     // window would open behind it.
-                    HyperKeysWindow.open(on: .appSearch)
+                    HyperKeysWindow.open(on: self.settingsPane)
                     DispatchQueue.main.async {
                         self.hide(restoringFocus: false)
                     }

@@ -26,7 +26,7 @@ ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 // ==========================================
 GENERATE_INFOPLIST_FILE = YES
 INFOPLIST_KEY_LSUIElement = YES
-INFOPLIST_KEY_NSAppleEventsUsageDescription = HyperKeys asks Finder to empty the Trash when you use the Empty Trash command.
+INFOPLIST_KEY_NSAppleEventsUsageDescription = HyperKeys asks Finder to empty the Trash, System Events to switch Dark Mode, and macOS to log out, restart or shut down, when you use those commands.
 
 // ==========================================
 // Code Signing

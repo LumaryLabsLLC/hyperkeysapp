@@ -8,6 +8,8 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
     case windows
     case appSearch
     case snippets
+    case quicklinks
+    case clipboard
     case hyperKey
     case settings
 
@@ -19,6 +21,8 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .windows: "Windows"
         case .appSearch: "Search & Switch"
         case .snippets: "Snippets"
+        case .quicklinks: "Quicklinks"
+        case .clipboard: "Clipboard"
         case .hyperKey: "Hyper Key"
         case .settings: "Settings"
         }
@@ -30,6 +34,8 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .windows: "rectangle.split.2x1.fill"
         case .appSearch: "magnifyingglass"
         case .snippets: "text.quote"
+        case .quicklinks: "link"
+        case .clipboard: "doc.on.clipboard"
         case .hyperKey: "sparkle"
         case .settings: "gearshape.fill"
         }
@@ -41,6 +47,8 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .windows: .green
         case .appSearch: .pink
         case .snippets: .mint
+        case .quicklinks: Color(red: 0.13, green: 0.59, blue: 0.95)
+        case .clipboard: .brown
         case .hyperKey: Brand.purple
         case .settings: .gray
         }

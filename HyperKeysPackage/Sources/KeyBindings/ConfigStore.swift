@@ -84,6 +84,7 @@ public final class ConfigStore {
         bindingStore.onChange = { [weak self] in self?.save() }
         AppGroupStore.shared.onChange = { [weak self] in self?.save() }
         SnippetStore.shared.onChange = { [weak self] in self?.save() }
+        QuicklinkStore.shared.onChange = { [weak self] in self?.save() }
 
         let center = NotificationCenter.default
         observers = [
@@ -163,7 +164,8 @@ public final class ConfigStore {
             windowGap: WindowGap.load(),
             switcherStaysOpen: Preferences.isSwitcherStayOpen,
             doubleTapOpensWindow: Preferences.isDoubleTapEnabled,
-            snippets: SnippetStore.shared.snippets
+            snippets: SnippetStore.shared.snippets,
+            quicklinks: QuicklinkStore.shared.quicklinks
         )
     }
 
@@ -213,6 +215,7 @@ public final class ConfigStore {
         let previousHyperKey = bindingStore.hyperKeyCode
         AppGroupStore.shared.replaceAll(settings.appGroups)
         SnippetStore.shared.replaceAll(settings.snippets)
+        QuicklinkStore.shared.replaceAll(settings.quicklinks)
         bindingStore.apply(bindings: settings.bindings, profiles: settings.profiles, hyperKey: settings.hyperKey)
 
         // The active profile is remembered by name, per Mac.

@@ -284,7 +284,7 @@ struct RaycastImportSheet: View {
 
     private func keywordNote(_ plan: RaycastImportPlan) -> String? {
         guard let keyword = plan.snippets.lazy.compactMap(\.keyword).first else { return nil }
-        return "Keywords like “\(keyword)” don’t come along — HyperKeys pastes snippets from the Snippets panel rather than as you type."
+        return "Keywords like “\(keyword)” come along too: type one anywhere and it turns into its snippet."
     }
 
     private func snippetSelectionButton(_ plan: RaycastImportPlan) -> some View {

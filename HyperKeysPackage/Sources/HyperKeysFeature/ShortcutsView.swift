@@ -214,7 +214,7 @@ private struct ShortcutRow: View {
     private var detailText: String {
         switch presentation.kind {
         case .app, .window: presentation.kind.title
-        case .appGroup, .menu, .folder, .appSearch, .appSwitcher, .emojiPicker, .snippets, .emptyTrash: presentation.subtitle
+        case .appGroup, .menu, .folder, .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .emptyTrash, .system, .quicklink: presentation.subtitle
         }
     }
 }

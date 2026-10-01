@@ -14,6 +14,10 @@ struct LauncherCommand: Identifiable {
     enum Icon {
         case symbol(String, Color)
         case windowLayout(WindowPosition)
+        /// The Finder icon of a file, folder or app.
+        case file(String)
+        /// A quicklink's own icon (the website's, once fetched).
+        case quicklink(Quicklink)
     }
 
     let id: String
@@ -21,10 +25,17 @@ struct LauncherCommand: Identifiable {
     let subtitle: String
     let icon: Icon
     var keywords: [String] = []
+    /// What the row says it is ("Command", "Quicklink").
+    var typeLabel = "Command"
+    var actionTitle = "Run Command"
     /// The binding that runs the same thing, so its Hyper shortcut can be shown.
     var action: BoundAction?
     /// Listed when nothing is typed (otherwise only found by searching).
     var isSuggested = false
+    /// Lock, sleep, shut down and the like: listed together in the System section.
+    var isSystem = false
+    /// Listed in the Quicklinks section of the home screen.
+    var isQuicklink = false
     /// Runs after the launcher closes. Receives the app that was in front before it opened.
     let run: @MainActor (NSRunningApplication?) -> Void
 }
@@ -54,7 +65,7 @@ enum LauncherItem: Identifiable {
     var typeLabel: String {
         switch self {
         case .app: "Application"
-        case .command: "Command"
+        case .command(let command): command.typeLabel
         case .folder: "Folder"
         }
     }
@@ -62,7 +73,7 @@ enum LauncherItem: Identifiable {
     var actionTitle: String {
         switch self {
         case .app: "Open Application"
-        case .command: "Run Command"
+        case .command(let command): command.actionTitle
         case .folder: "Open Folder"
         }
     }
@@ -202,6 +213,15 @@ final class AppSearchModel {
         recompute()
     }
 
+    /// The System section on the home screen: the everyday ones. Searching "system" finds the rest.
+    private var systemCommands: [LauncherCommand] {
+        let order = [
+            "system-lockScreen", "system-sleep", "caffeinate", "kill-process",
+            "empty-trash", "system-logOut", "system-restart", "system-shutDown",
+        ]
+        return order.compactMap { id in commands.first { $0.id == id } }
+    }
+
     private func recompute() {
         selection = 0
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
@@ -214,7 +234,9 @@ final class AppSearchModel {
             sections = [
                 LauncherSection(title: "Recent", items: recents.map(LauncherItem.app)),
                 LauncherSection(title: "Folders", items: folders.map { LauncherItem.folder(path: $0) }),
-                LauncherSection(title: "Commands", items: commands.filter(\.isSuggested).map(LauncherItem.command)),
+                LauncherSection(title: "Quicklinks", items: commands.filter(\.isQuicklink).map(LauncherItem.command)),
+                LauncherSection(title: "Commands", items: commands.filter { $0.isSuggested && !$0.isSystem }.map(LauncherItem.command)),
+                LauncherSection(title: "System", items: systemCommands.map(LauncherItem.command)),
             ].filter { !$0.items.isEmpty }
             items = sections.flatMap(\.items)
             return
@@ -355,7 +377,7 @@ public final class AppSearchController {
 
     // MARK: Commands
 
-    private func makeCommands() -> [LauncherCommand] {
+    func makeCommands() -> [LauncherCommand] {
         let isPaused = status?.isPaused ?? false
         var commands: [LauncherCommand] = [
             LauncherCommand(
@@ -377,10 +399,26 @@ public final class AppSearchController {
             LauncherCommand(
                 id: "snippets", title: "Search Snippets", subtitle: "HyperKeys",
                 icon: .symbol(ActionKind.snippets.symbol, ActionKind.snippets.color),
-                keywords: ["snippets", "text", "paste", "templates", "clipboard"],
+                keywords: ["snippets", "text", "paste", "templates"],
                 action: .snippets, isSuggested: true
             ) { previousApp in
                 SnippetsPanelController.shared.show(returningTo: previousApp)
+            },
+            LauncherCommand(
+                id: "clipboard", title: "Clipboard History", subtitle: "HyperKeys",
+                icon: .symbol(ActionKind.clipboardHistory.symbol, ActionKind.clipboardHistory.color),
+                keywords: ["clipboard", "history", "copied", "paste", "pasteboard"],
+                action: .clipboardHistory, isSuggested: true
+            ) { previousApp in
+                ClipboardHistoryPanelController.shared.show(returningTo: previousApp)
+            },
+            LauncherCommand(
+                id: "menu-search", title: "Search Menu Items", subtitle: "HyperKeys",
+                icon: .symbol(ActionKind.menuSearch.symbol, ActionKind.menuSearch.color),
+                keywords: ["menu", "menu bar", "menu items", "commands", "actions"],
+                action: .menuSearch, isSuggested: true
+            ) { previousApp in
+                MenuSearchController.shared.show(returningTo: previousApp)
             },
             LauncherCommand(
                 id: "new-snippet", title: "Create Snippet", subtitle: "HyperKeys",
@@ -393,10 +431,29 @@ public final class AppSearchController {
             LauncherCommand(
                 id: "empty-trash", title: "Empty Trash", subtitle: "System",
                 icon: .symbol(ActionKind.emptyTrash.symbol, ActionKind.emptyTrash.color),
-                keywords: ["trash", "bin", "recycle bin", "delete"],
-                action: .emptyTrash
+                keywords: ["trash", "bin", "recycle bin", "delete", "system"],
+                action: .emptyTrash, isSystem: true
             ) { previousApp in
                 SystemCommands.emptyTrash()
+                previousApp?.activate()
+            },
+            LauncherCommand(
+                id: "kill-process", title: "Kill Process", subtitle: "System",
+                icon: .symbol(ActionKind.killProcess.symbol, ActionKind.killProcess.color),
+                keywords: ["kill", "process", "processes", "quit", "force quit", "activity monitor", "cpu", "memory", "system"],
+                action: .killProcess, isSystem: true
+            ) { previousApp in
+                KillProcessController.shared.show(returningTo: previousApp)
+            },
+            LauncherCommand(
+                id: "caffeinate",
+                title: Caffeinate.shared.isActive ? "Decaffeinate" : "Caffeinate",
+                subtitle: Caffeinate.shared.isActive ? "Keeping your Mac awake" : "Keep your Mac awake",
+                icon: .symbol(SystemAction.caffeinate.symbol, .brown),
+                keywords: ["caffeinate", "decaffeinate"] + SystemAction.caffeinate.keywords + ["system"],
+                action: .system(.caffeinate), isSystem: true
+            ) { previousApp in
+                Caffeinate.shared.toggle()
                 previousApp?.activate()
             },
             LauncherCommand(
@@ -424,6 +481,30 @@ public final class AppSearchController {
                 NSApp.terminate(nil)
             },
         ]
+
+        for action in SystemAction.allCases where action != .caffeinate {
+            commands.append(LauncherCommand(
+                id: "system-\(action.rawValue)", title: action.title, subtitle: "System",
+                icon: .symbol(action.symbol, ActionKind.system.color),
+                keywords: action.keywords + ["system"],
+                action: .system(action), isSystem: true
+            ) { previousApp in
+                previousApp?.activate()
+                SystemCommands.run(action)
+            })
+        }
+
+        for quicklink in QuicklinkStore.shared.quicklinks {
+            commands.append(LauncherCommand(
+                id: "quicklink-\(quicklink.id.uuidString)", title: quicklink.name, subtitle: quicklink.displayLink,
+                icon: .quicklink(quicklink),
+                keywords: [quicklink.displayLink, "quicklink", "link"],
+                typeLabel: "Quicklink", actionTitle: "Open Quicklink",
+                action: .quicklink(name: quicklink.name), isQuicklink: true
+            ) { previousApp in
+                QuicklinkRunner.open(quicklink, from: previousApp)
+            })
+        }
 
         // Every window layout, found by searching ("left half", "center", …).
         for position in WindowPosition.allCases {

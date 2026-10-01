@@ -118,6 +118,10 @@ struct MainView: View {
             AppSearchPage(bindingStore: bindingStore)
         case .snippets:
             SnippetsPage(bindingStore: bindingStore)
+        case .quicklinks:
+            QuicklinksPage(bindingStore: bindingStore)
+        case .clipboard:
+            ClipboardPage(bindingStore: bindingStore)
         case .hyperKey:
             HyperKeyView(bindingStore: bindingStore, status: status, onHyperKeyChanged: onHyperKeyChanged)
         case .settings:

@@ -147,3 +147,98 @@ public struct ShortcutRecorder: View {
         }
     }
 }
+
+/// A capsule that shows a regular shortcut like ⇧⌘V, and records a new one when clicked.
+public struct KeyComboRecorder: View {
+    let combo: KeyCombo?
+    let onRecord: (KeyCombo) -> Void
+    let onClear: () -> Void
+
+    @State private var id = UUID()
+    @State private var isHovered = false
+    private var center: KeyRecordingCenter { .shared }
+
+    public init(combo: KeyCombo?, onRecord: @escaping (KeyCombo) -> Void, onClear: @escaping () -> Void) {
+        self.combo = combo
+        self.onRecord = onRecord
+        self.onClear = onClear
+    }
+
+    private var isRecording: Bool {
+        center.activeID == AnyHashable(id)
+    }
+
+    public var body: some View {
+        HStack(spacing: 4) {
+            Button(action: toggleRecording) {
+                label
+                    .frame(minWidth: 96, minHeight: 26)
+                    .padding(.horizontal, 6)
+                    .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .background(
+                Capsule().fill(isRecording ? Brand.purple.opacity(0.14) : (isHovered ? Color.primary.opacity(0.08) : Color.primary.opacity(0.05)))
+            )
+            .overlay(
+                Capsule().strokeBorder(isRecording ? Brand.purple : Color.primary.opacity(0.1), lineWidth: isRecording ? 1.5 : 0.5)
+            )
+            .onHover { isHovered = $0 }
+            .help(isRecording ? "Press a shortcut, or Esc to cancel" : (combo == nil ? "Click, then press a shortcut such as ⇧⌘V" : "Click to change"))
+
+            if combo != nil, !isRecording {
+                Button("Remove Shortcut", systemImage: "xmark.circle.fill", action: onClear)
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tertiary)
+                    .help("Remove shortcut")
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: isRecording)
+        .onDisappear {
+            if isRecording { center.cancel() }
+        }
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        if isRecording {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Brand.purple)
+                    .frame(width: 6, height: 6)
+                    .phaseAnimator([0.3, 1.0]) { content, opacity in
+                        content.opacity(opacity)
+                    } animation: { _ in .easeInOut(duration: 0.6) }
+                Text("Press a shortcut…")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Brand.purple)
+            }
+        } else if let combo {
+            HStack(spacing: 3) {
+                ForEach(Array(combo.modifiers.symbols), id: \.self) { symbol in
+                    KeycapChip(String(symbol), height: 18)
+                }
+                KeycapChip(combo.key, height: 18)
+            }
+        } else {
+            Label("Record", systemImage: "record.circle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func toggleRecording() {
+        if isRecording {
+            center.cancel()
+            return
+        }
+        center.begin(id: id) { event in
+            // Modifier presses alone keep listening; a real key with ⌘, ⌃ or ⌥ completes it.
+            guard event.type == .keyDown else { return false }
+            guard let combo = KeyCombo(event: event) else { return false }
+            onRecord(combo)
+            return true
+        }
+    }
+}

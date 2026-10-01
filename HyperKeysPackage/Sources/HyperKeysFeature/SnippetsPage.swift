@@ -1,6 +1,7 @@
 import EventEngine
 import KeyBindings
 import KeyboardUI
+import Shared
 import SwiftUI
 
 /// Create, edit and delete snippets, and give the Snippets panel a shortcut.
@@ -11,6 +12,7 @@ struct SnippetsPage: View {
     @State private var navigation = NavigationRequests.shared
     @State private var draft: SnippetDraft?
     @State private var pendingKey: KeyCode?
+    @AppStorage(Preferences.expandSnippetKeywords) private var expandKeywords = true
     @State private var isImportingFromRaycast = false
 
     var body: some View {
@@ -21,6 +23,18 @@ struct SnippetsPage: View {
             )
 
             panelCard
+
+            Toggle(isOn: $expandKeywords) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Expand keywords as you type")
+                    Text("Give a snippet a keyword, like ;addr, and typing it anywhere replaces it with the snippet. Never in password fields.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .hkCard()
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
@@ -196,6 +210,14 @@ private struct SnippetRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 12)
+            if let keyword = snippet.keyword {
+                Text(keyword)
+                    .font(.caption.monospaced())
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .overlay(Capsule().strokeBorder(.secondary.opacity(0.5), lineWidth: 0.5))
+                    .help("Type \(keyword) anywhere to paste this snippet")
+            }
             ForEach(snippet.tags.prefix(3), id: \.self) { tag in
                 Text(tag)
                     .font(.caption)
@@ -231,6 +253,7 @@ struct SnippetDraft: Identifiable {
     var name = ""
     var text = ""
     var tags = ""
+    var keyword = ""
     var isNew = true
 
     init() {}
@@ -240,6 +263,7 @@ struct SnippetDraft: Identifiable {
         name = snippet.name
         text = snippet.text
         tags = snippet.tags.joined(separator: ", ")
+        keyword = snippet.keyword ?? ""
         isNew = false
     }
 
@@ -248,7 +272,8 @@ struct SnippetDraft: Identifiable {
             id: id,
             name: name.trimmingCharacters(in: .whitespaces),
             text: text,
-            tags: tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            tags: tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
+            keyword: keyword.trimmingCharacters(in: .whitespaces)
         )
     }
 }
@@ -258,6 +283,13 @@ private struct SnippetEditor: View {
     let onSave: (Snippet) -> Void
     let onDelete: (() -> Void)?
     let onCancel: () -> Void
+
+    /// Another snippet with the same keyword (the longer keyword wins when typing, so warn).
+    private var keywordClash: String? {
+        let keyword = draft.keyword.trimmingCharacters(in: .whitespaces)
+        guard !keyword.isEmpty else { return nil }
+        return SnippetStore.shared.snippets.first { $0.id != draft.id && $0.keyword == keyword }?.name
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -277,9 +309,22 @@ private struct SnippetEditor: View {
                     .background(Color.primary.opacity(0.05), in: .rect(cornerRadius: 8, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.primary.opacity(0.1)))
             }
-            field("Tags") {
-                TextField("Optional, separated by commas", text: $draft.tags)
-                    .textFieldStyle(.roundedBorder)
+            HStack(alignment: .top, spacing: 12) {
+                field("Keyword") {
+                    TextField("Optional, e.g. ;addr", text: $draft.keyword)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospaced())
+                }
+                .frame(width: 180)
+                field("Tags") {
+                    TextField("Optional, separated by commas", text: $draft.tags)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+            if let clash = keywordClash {
+                Text("“\(clash)” already uses this keyword.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
             Text("Placeholders like {clipboard}, {date} and {time} are filled in when you paste.")
                 .font(.caption)

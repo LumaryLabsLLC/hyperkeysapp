@@ -38,7 +38,7 @@ extension Color {
 
 /// The four things a shortcut can do, each with a consistent color and symbol.
 public enum ActionKind: CaseIterable, Sendable {
-    case app, appGroup, window, menu, folder, appSearch, appSwitcher, emojiPicker, snippets, emptyTrash
+    case app, appGroup, window, menu, folder, quicklink, appSearch, appSwitcher, emojiPicker, snippets, clipboardHistory, killProcess, menuSearch, emptyTrash, system
 
     public init?(_ action: BoundAction) {
         switch action {
@@ -52,6 +52,11 @@ public enum ActionKind: CaseIterable, Sendable {
         case .openFolder: self = .folder
         case .emptyTrash: self = .emptyTrash
         case .snippets: self = .snippets
+        case .clipboardHistory: self = .clipboardHistory
+        case .killProcess: self = .killProcess
+        case .menuSearch: self = .menuSearch
+        case .quicklink: self = .quicklink
+        case .system: self = .system
         case .none: return nil
         }
     }
@@ -67,7 +72,12 @@ public enum ActionKind: CaseIterable, Sendable {
         case .emojiPicker: "Emoji & Symbols"
         case .folder: "Open Folder"
         case .snippets: "Snippets"
+        case .clipboardHistory: "Clipboard History"
+        case .killProcess: "Kill Process"
+        case .menuSearch: "Search Menu Items"
+        case .quicklink: "Quicklink"
         case .emptyTrash: "Empty Trash"
+        case .system: "System"
         }
     }
 
@@ -82,7 +92,12 @@ public enum ActionKind: CaseIterable, Sendable {
         case .emojiPicker: "face.smiling.inverse"
         case .folder: "folder.fill"
         case .snippets: "text.quote"
+        case .clipboardHistory: "doc.on.clipboard"
+        case .killProcess: "xmark.octagon.fill"
+        case .menuSearch: "filemenu.and.cursorarrow"
+        case .quicklink: "link"
         case .emptyTrash: "trash.fill"
+        case .system: "power"
         }
     }
 
@@ -97,7 +112,12 @@ public enum ActionKind: CaseIterable, Sendable {
         case .emojiPicker: Color(red: 0.98, green: 0.62, blue: 0.1)
         case .folder: .cyan
         case .snippets: .mint
+        case .clipboardHistory: .brown
+        case .killProcess: .red
+        case .menuSearch: .orange
+        case .quicklink: Color(red: 0.13, green: 0.59, blue: 0.95)
         case .emptyTrash: .gray
+        case .system: Color(red: 0.42, green: 0.47, blue: 0.56)
         }
     }
 }

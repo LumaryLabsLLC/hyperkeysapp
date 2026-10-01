@@ -188,6 +188,19 @@ struct AppSearchLauncherView: View {
             case .windowLayout(let position):
                 WindowLayoutGlyph(position: position, color: ActionKind.window.color)
                     .frame(width: 24, height: 17)
+            case .file(let path):
+                Image(nsImage: AppIconCache.icon(forPath: path))
+                    .resizable()
+                    .interpolation(.high)
+            case .quicklink(let quicklink):
+                if let image = QuicklinkRunner.icon(for: quicklink) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .clipShape(.rect(cornerRadius: 5, style: .continuous))
+                } else {
+                    IconTile(symbol: ActionKind.quicklink.symbol, color: ActionKind.quicklink.color, size: 22)
+                }
             }
         }
     }

@@ -14,6 +14,14 @@ public struct BindingPresentation: Equatable, Sendable {
     public let windowPosition: WindowPosition?
     /// Files or folders whose Finder icons represent this binding.
     public var filePaths: [String] = []
+    public var systemAction: SystemAction?
+    /// For quicklinks to websites: the site whose icon to show.
+    public var faviconHost: String?
+
+    /// The SF Symbol for command-style actions; system actions each have their own.
+    public var symbol: String {
+        systemAction?.symbol ?? kind.symbol
+    }
 
     @MainActor
     public init?(_ action: BoundAction) {
@@ -86,6 +94,44 @@ public struct BindingPresentation: Equatable, Sendable {
             appBundleIds = []
             windowPosition = nil
 
+        case .clipboardHistory:
+            title = "Clipboard History"
+            subtitle = "Search and paste what you've copied"
+            appBundleIds = []
+            windowPosition = nil
+
+        case .killProcess:
+            title = "Kill Process"
+            subtitle = "Quit or force quit a running app or process"
+            appBundleIds = []
+            windowPosition = nil
+
+        case .quicklink(let name):
+            let quicklink = QuicklinkStore.shared.quicklink(named: name)
+            title = name
+            subtitle = quicklink?.displayLink ?? "Quicklink"
+            appBundleIds = []
+            windowPosition = nil
+            faviconHost = quicklink?.host
+            if let path = quicklink?.localPath {
+                filePaths = [path]
+            } else if let app = quicklink?.openingAppURL {
+                filePaths = [app.path]
+            }
+
+        case .menuSearch:
+            title = "Search Menu Items"
+            subtitle = "Find and run any menu command in the app you're in"
+            appBundleIds = []
+            windowPosition = nil
+
+        case .system(let action):
+            title = action.title
+            subtitle = action.detail
+            appBundleIds = []
+            windowPosition = nil
+            systemAction = action
+
         case .none:
             return nil
         }
@@ -93,7 +139,10 @@ public struct BindingPresentation: Equatable, Sendable {
 
     @MainActor
     public var icons: [NSImage] {
-        appBundleIds.compactMap { AppIconCache.icon(forBundleId: $0) }
+        if let faviconHost, let favicon = FaviconCache.shared.icon(forHost: faviconHost) {
+            return [favicon]
+        }
+        return appBundleIds.compactMap { AppIconCache.icon(forBundleId: $0) }
             + filePaths.map { AppIconCache.icon(forPath: $0) }
     }
 
@@ -109,6 +158,11 @@ public struct BindingPresentation: Equatable, Sendable {
         case .emojiPicker: "Open Emoji & Symbols"
         case .folder: "Open \(subtitle)"
         case .snippets: "Open Snippets"
+        case .clipboardHistory: "Open Clipboard History"
+        case .killProcess: "Open Kill Process"
+        case .menuSearch: "Search the current app's menus"
+        case .quicklink: "Open \(title)"
+        case .system: title
         case .emptyTrash: "Empty the Trash"
         }
     }
@@ -134,8 +188,14 @@ public struct BindingIcon: View {
             }
         case .app, .appGroup, .folder:
             AppIconStack(icons: presentation.icons, size: size)
-        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .emptyTrash:
-            IconTile(symbol: presentation.kind.symbol, color: presentation.kind.color, size: size)
+        case .quicklink:
+            if presentation.icons.isEmpty {
+                IconTile(symbol: presentation.symbol, color: presentation.kind.color, size: size)
+            } else {
+                AppIconStack(icons: presentation.icons, size: size)
+            }
+        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .emptyTrash, .system:
+            IconTile(symbol: presentation.symbol, color: presentation.kind.color, size: size)
         case .menu:
             ZStack(alignment: .bottomTrailing) {
                 if let icon = presentation.icons.first {

@@ -80,6 +80,23 @@ public final class BindingStore {
         save()
     }
 
+    /// Points shortcuts that open the quicklink `old` at its new name, in every profile.
+    public func renameQuicklink(from old: String, to new: String) {
+        guard old != new else { return }
+        func rename(_ list: inout [KeyBinding]) {
+            for index in list.indices {
+                if case .quicklink(let name) = list[index].action, name.caseInsensitiveCompare(old) == .orderedSame {
+                    list[index].action = .quicklink(name: new)
+                }
+            }
+        }
+        rename(&bindings)
+        for index in actionGroups.indices {
+            rename(&actionGroups[index].bindings)
+        }
+        save()
+    }
+
     /// Removes the binding for `keyCode` from whichever profile is active.
     public func clearBinding(for keyCode: KeyCode) {
         if let groupId = activeGroupId {

@@ -17,8 +17,25 @@ nonisolated(unsafe) private let debugLog: @Sendable (String) -> Void = {
     }
 }()
 
+/// A key you typed that went through to the app (not a Hyper shortcut).
+public struct TypedKey: Sendable {
+    public let keyCode: UInt16
+    public let flags: CGEventFlags
+    /// What it types, e.g. "a" or "A"; empty for keys like arrows.
+    public let characters: String
+
+    public init(keyCode: UInt16, flags: CGEventFlags = [], characters: String) {
+        self.keyCode = keyCode
+        self.flags = flags
+        self.characters = characters
+    }
+}
+
 /// Manages the CGEventTap for intercepting keyboard events.
 public final class EventTapManager: @unchecked Sendable {
+    /// Every ordinary key press that reaches the app, except HyperKeys' own. Runs on the main thread.
+    public var onKeyTyped: (@Sendable (TypedKey) -> Void)?
+
     private var machPort: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     public let engine = HyperKeyEngine()
@@ -115,6 +132,17 @@ private func eventTapCallback(
     }
 
     if let result = manager.engine.process(type: type, event: event) {
+        if type == .keyDown, let onKeyTyped = manager.onKeyTyped,
+           result.getIntegerValueField(.eventSourceUserData) != SyntheticEvent.marker {
+            var length = 0
+            var characters = [UniChar](repeating: 0, count: 8)
+            result.keyboardGetUnicodeString(maxStringLength: 8, actualStringLength: &length, unicodeString: &characters)
+            onKeyTyped(TypedKey(
+                keyCode: UInt16(result.getIntegerValueField(.keyboardEventKeycode)),
+                flags: result.flags,
+                characters: String(utf16CodeUnits: characters, count: length)
+            ))
+        }
         return Unmanaged.passRetained(result)
     }
     return nil
