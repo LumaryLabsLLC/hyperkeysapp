@@ -23,6 +23,8 @@ ZIP="$OUT/HyperKeys.zip"
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
+# Start from a clean app: macOS won't let Xcode overwrite a signed app from an earlier release.
+rm -rf "$DERIVED/Build/Products"
 
 echo "› Building HyperKeys $VERSION"
 xcodebuild build \
