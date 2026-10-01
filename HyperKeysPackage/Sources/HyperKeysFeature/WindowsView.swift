@@ -10,14 +10,6 @@ struct WindowsView: View {
 
     @State private var gap = WindowGap.load()
     @AppStorage(Preferences.cycleHalves) private var cycleHalves = false
-    @State private var conflict: Conflict?
-
-    /// A recorded key that's already used by a different shortcut.
-    private struct Conflict {
-        let position: WindowPosition
-        let keyCode: KeyCode
-        let existing: BindingPresentation
-    }
 
     private let columns = [GridItem(.adaptive(minimum: 210), spacing: 12)]
 
@@ -25,7 +17,7 @@ struct WindowsView: View {
         PageScroll {
             PageHeader(
                 pane: .windows,
-                subtitle: "Snap the window you're using into place from any app. Click Record next to a layout, then press the key you want."
+                subtitle: "Snap the window you're using into place from any app. Click Record next to a layout, then press a key to use with Hyper, or any shortcut like ⌃⌥←."
             )
 
             gapCard
@@ -42,18 +34,6 @@ struct WindowsView: View {
                     }
                 }
             }
-        }
-        .confirmationDialog(
-            conflictTitle,
-            isPresented: Binding(get: { conflict != nil }, set: { if !$0 { conflict = nil } }),
-            presenting: conflict
-        ) { conflict in
-            Button("Use for \(conflict.position.displayName)") {
-                assign(conflict.position, to: conflict.keyCode)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: { conflict in
-            Text("It currently does “\(conflict.existing.summary)”. Replace it?")
         }
     }
 
@@ -108,52 +88,20 @@ struct WindowsView: View {
     // MARK: - Layout cards
 
     private func layoutCard(for position: WindowPosition) -> some View {
-        let keyCode = bindingStore.keyCode(for: .windowAction(position))
+        let action = BoundAction.windowAction(position)
+        let hasShortcut = bindingStore.keyCode(for: action) != nil || GlobalShortcutStore.shared.shortcut(for: action) != nil
 
         return HStack(spacing: 14) {
-            WindowLayoutGlyph(position: position, color: ActionKind.window.color, isActive: keyCode != nil)
+            WindowLayoutGlyph(position: position, color: ActionKind.window.color, isActive: hasShortcut)
                 .frame(width: 56, height: 38)
             VStack(alignment: .leading, spacing: 6) {
                 Text(position.displayName)
                     .font(.callout.weight(.medium))
-                ShortcutRecorder(
-                    keyCode: keyCode,
-                    hyperKey: bindingStore.hyperKeyCode,
-                    onRecord: { record($0, for: position) },
-                    onClear: {
-                        if let keyCode { bindingStore.clearBinding(for: keyCode) }
-                    }
-                )
+                ActionShortcutField(action: action, bindingStore: bindingStore)
             }
             Spacer(minLength: 0)
         }
         .padding(12)
         .hkCard(cornerRadius: 12)
-    }
-
-    private func record(_ keyCode: KeyCode, for position: WindowPosition) {
-        let action = BoundAction.windowAction(position)
-        if let existing = bindingStore.binding(for: keyCode), existing.action != action,
-           let presentation = BindingPresentation(existing.action) {
-            conflict = Conflict(position: position, keyCode: keyCode, existing: presentation)
-            return
-        }
-        assign(position, to: keyCode)
-    }
-
-    private func assign(_ position: WindowPosition, to keyCode: KeyCode) {
-        let action = BoundAction.windowAction(position)
-        // One key per layout: re-recording moves the shortcut rather than adding a second one.
-        if let previous = bindingStore.keyCode(for: action), previous != keyCode {
-            bindingStore.clearBinding(for: previous)
-        }
-        withAnimation(.snappy) {
-            bindingStore.assign(action, to: keyCode)
-        }
-    }
-
-    private var conflictTitle: String {
-        guard let conflict else { return "" }
-        return "Hyper + \(conflict.keyCode.displayLabel) is already in use"
     }
 }

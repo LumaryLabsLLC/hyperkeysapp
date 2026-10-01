@@ -28,6 +28,8 @@ struct ShortcutsView: View {
             legend
 
             assignedList
+
+            OtherShortcutsSection()
         }
         .sheet(isPresented: $isImportingFromRaycast) {
             RaycastImportSheet(bindingStore: bindingStore)
@@ -102,6 +104,7 @@ struct ShortcutsView: View {
                                 keyCode: binding.keyCode,
                                 hyperKey: bindingStore.hyperKeyCode,
                                 presentation: presentation,
+                                deeplink: Deeplink.url(for: binding.action),
                                 onEdit: { listEditingKey = binding.keyCode },
                                 onRemove: {
                                     withAnimation(.snappy) { bindingStore.clearBinding(for: binding.keyCode) }
@@ -119,7 +122,7 @@ struct ShortcutsView: View {
                         }
                     }
                 }
-                .hkCard()
+                .hkListCard()
             }
         }
     }
@@ -155,6 +158,7 @@ private struct ShortcutRow: View {
     let keyCode: KeyCode
     let hyperKey: KeyCode
     let presentation: BindingPresentation
+    let deeplink: URL?
     let onEdit: () -> Void
     let onRemove: () -> Void
 
@@ -164,7 +168,7 @@ private struct ShortcutRow: View {
         HStack(spacing: 12) {
             HyperComboView(hyperKey: hyperKey, key: keyCode, height: 22)
                 .fixedSize()
-                .frame(minWidth: 96, alignment: .leading)
+                .frame(minWidth: 120, alignment: .leading)
 
             BindingIcon(presentation: presentation, size: 26)
                 .frame(width: 32)
@@ -196,7 +200,7 @@ private struct ShortcutRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(isHovered ? Color.primary.opacity(0.04) : .clear)
+        .hkRowHighlight(isHovered)
         .contentShape(.rect)
         .onTapGesture(perform: onEdit)
         .onHover { hovering in
@@ -204,6 +208,8 @@ private struct ShortcutRow: View {
         }
         .contextMenu {
             Button("Edit Shortcut…", systemImage: "pencil", action: onEdit)
+            CopyDeeplinkButton(deeplink)
+            Divider()
             Button("Remove Shortcut", systemImage: "trash", role: .destructive, action: onRemove)
         }
         .accessibilityElement(children: .combine)

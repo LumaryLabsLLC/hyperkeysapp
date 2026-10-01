@@ -169,13 +169,6 @@ public final class ClipboardHistoryPanelController {
         host?.hide(restoringFocus: true)
     }
 
-    /// Registers the regular shortcut (like ⇧⌘V) from settings; call again after it changes.
-    public func applyHotKey() {
-        GlobalHotKeys.shared.set(model.store.hotKey, for: "clipboardHistory") { [weak self] in
-            self?.toggle()
-        }
-    }
-
     func insert(_ item: ClipboardItem, paste: Bool) {
         let store = model.store
         host?.hide(restoringFocus: true)

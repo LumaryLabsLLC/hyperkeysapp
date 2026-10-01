@@ -16,7 +16,7 @@ struct QuicklinksPage: View {
         PageScroll {
             PageHeader(
                 pane: .quicklinks,
-                subtitle: "Websites, folders and app links you open often. Find them in App Search or give them a Hyper key."
+                subtitle: "Websites, folders and app links you open often. Open them from App Search, a shortcut or an alias."
             )
 
             VStack(alignment: .leading, spacing: 10) {
@@ -48,7 +48,14 @@ struct QuicklinksPage: View {
                                 key: bindingStore.keyCode(for: .quicklink(name: quicklink.name)),
                                 hyperKey: bindingStore.hyperKeyCode,
                                 onOpen: { QuicklinkRunner.open(quicklink, from: nil) },
-                                onEdit: { draft = QuicklinkDraft(quicklink, key: bindingStore.keyCode(for: .quicklink(name: quicklink.name))) },
+                                onEdit: {
+                                    let action = BoundAction.quicklink(name: quicklink.name)
+                                    draft = QuicklinkDraft(
+                                        quicklink, key: bindingStore.keyCode(for: action),
+                                        combo: GlobalShortcutStore.shared.shortcut(for: action)?.combo,
+                                        alias: AliasStore.shared.alias(for: action)?.text
+                                    )
+                                },
                                 onDelete: { delete(quicklink) }
                             )
                             if quicklink.id != store.quicklinks.last?.id {
@@ -56,7 +63,7 @@ struct QuicklinksPage: View {
                             }
                         }
                     }
-                    .hkCard()
+                    .hkListCard()
                 }
 
                 Text("Placeholders: {argument} asks for a value when you open it (name it with {argument name=\"query\"}). {clipboard}, {selection} and {date} work too. In web links, filled-in values are URL-encoded.")
@@ -72,7 +79,12 @@ struct QuicklinksPage: View {
                 isNameTaken: { name in
                     store.quicklinks.contains { $0.id != draft.id && $0.name.caseInsensitiveCompare(name) == .orderedSame }
                 },
-                currentAction: { bindingStore.binding(for: $0)?.action },
+                currentAction: { shortcut in
+                    switch shortcut {
+                    case .hyper(let key): bindingStore.binding(for: key)?.action
+                    case .combo(let combo): GlobalShortcutStore.shared.shortcuts.first { $0.combo == combo }?.action
+                    }
+                },
                 onSave: { save($0) },
                 onDelete: draft.isNew ? nil : {
                     if let quicklink = store.quicklink(id: draft.id) { delete(quicklink) }
@@ -106,6 +118,8 @@ struct QuicklinksPage: View {
         let quicklink = draft.quicklink
         if let original = draft.originalName, original != quicklink.name {
             bindingStore.renameQuicklink(from: original, to: quicklink.name)
+            GlobalShortcutStore.shared.renameQuicklink(from: original, to: quicklink.name)
+            AliasStore.shared.renameQuicklink(from: original, to: quicklink.name)
         }
         store.save(quicklink)
 
@@ -116,12 +130,29 @@ struct QuicklinksPage: View {
         if let key = draft.key, bindingStore.binding(for: key)?.action != action {
             bindingStore.assign(action, to: key)
         }
+        let shortcuts = GlobalShortcutStore.shared
+        if shortcuts.shortcut(for: action)?.combo != draft.combo {
+            shortcuts.set(draft.combo, for: action)
+        }
+        let aliases = AliasStore.shared
+        if draft.alias.isEmpty {
+            if let existing = aliases.alias(for: action) { aliases.delete(id: existing.id) }
+        } else if aliases.alias(for: action)?.text != draft.alias {
+            aliases.save(Alias(id: aliases.alias(for: action)?.id ?? UUID(), text: draft.alias, action: action))
+        }
         self.draft = nil
     }
 
     private func delete(_ quicklink: Quicklink) {
-        if let key = bindingStore.keyCode(for: .quicklink(name: quicklink.name)) {
+        let action = BoundAction.quicklink(name: quicklink.name)
+        if let key = bindingStore.keyCode(for: action) {
             bindingStore.clearBinding(for: key)
+        }
+        if GlobalShortcutStore.shared.shortcut(for: action) != nil {
+            GlobalShortcutStore.shared.set(nil, for: action)
+        }
+        if let alias = AliasStore.shared.alias(for: action) {
+            AliasStore.shared.delete(id: alias.id)
         }
         store.delete(id: quicklink.id)
     }
@@ -178,13 +209,15 @@ private struct QuicklinkRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(isHovered ? Color.primary.opacity(0.04) : .clear)
+        .hkRowHighlight(isHovered)
         .contentShape(.rect)
         .onTapGesture(perform: onEdit)
         .onHover { isHovered = $0 }
         .contextMenu {
             Button("Open", systemImage: "arrow.up.forward.square", action: onOpen)
             Button("Edit Quicklink…", systemImage: "pencil", action: onEdit)
+            CopyDeeplinkButton(for: .quicklink(name: quicklink.name))
+            Divider()
             Button("Delete Quicklink", systemImage: "trash", role: .destructive, action: onDelete)
         }
         // The buttons only show on hover, so offer the same actions to VoiceOver.
@@ -203,18 +236,24 @@ struct QuicklinkDraft: Identifiable {
     var link = ""
     var openWith: String?
     var key: KeyCode?
+    /// A regular shortcut instead of a Hyper key.
+    var combo: KeyCombo?
+    /// Typed in App Search, it finds this quicklink ("gh"); text after it fills the `{argument}`.
+    var alias = ""
     var isNew = true
     /// The name before editing, so shortcuts can follow a rename.
     var originalName: String?
 
     init() {}
 
-    init(_ quicklink: Quicklink, key: KeyCode?) {
+    init(_ quicklink: Quicklink, key: KeyCode?, combo: KeyCombo?, alias: String?) {
         id = quicklink.id
         name = quicklink.name
         link = quicklink.link
         openWith = quicklink.openWith
         self.key = key
+        self.combo = combo
+        self.alias = alias ?? ""
         isNew = false
         originalName = quicklink.name
     }
@@ -233,7 +272,7 @@ private struct QuicklinkEditor: View {
     @State var draft: QuicklinkDraft
     let hyperKey: KeyCode
     let isNameTaken: (String) -> Bool
-    let currentAction: (KeyCode) -> BoundAction?
+    let currentAction: (RecordedShortcut) -> BoundAction?
     let onSave: (QuicklinkDraft) -> Void
     let onDelete: (() -> Void)?
     let onCancel: () -> Void
@@ -275,17 +314,40 @@ private struct QuicklinkEditor: View {
                 VStack(alignment: .leading, spacing: 4) {
                     ShortcutRecorder(
                         keyCode: draft.key,
+                        combo: draft.combo,
                         hyperKey: hyperKey,
-                        onRecord: { draft.key = $0 },
-                        onClear: { draft.key = nil }
+                        onRecord: { shortcut in
+                            switch shortcut {
+                            case .hyper(let key): (draft.key, draft.combo) = (key, nil)
+                            case .combo(let combo): (draft.key, draft.combo) = (nil, combo)
+                            }
+                        },
+                        onClear: { (draft.key, draft.combo) = (nil, nil) }
                     )
-                    if let key = draft.key, let existing = currentAction(key),
+                    if let recorded = draft.key.map(RecordedShortcut.hyper) ?? draft.combo.map(RecordedShortcut.combo),
+                       let existing = currentAction(recorded),
                        existing != .quicklink(name: draft.originalName ?? ""),
                        let presentation = BindingPresentation(existing) {
                         Text("Replaces “\(presentation.summary)”.")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
+                }
+            }
+
+            field("Alias") {
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("gh", text: $draft.alias)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 160)
+                        .onChange(of: draft.alias) {
+                            let normalized = Alias.normalized(draft.alias)
+                            if normalized != draft.alias { draft.alias = normalized }
+                        }
+                    Text("Type it in App Search to jump here\(Placeholders.arguments(in: draft.link).isEmpty ? "" : ", followed by what to search for").")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 

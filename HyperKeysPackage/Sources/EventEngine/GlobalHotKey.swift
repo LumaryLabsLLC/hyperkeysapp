@@ -70,7 +70,8 @@ public struct KeyCombo: Hashable, Sendable {
             default: return nil
             }
         }
-        guard !modifiers.isEmpty || key.isFunctionKey else { return nil }
+        // Like recording: Shift alone would take over typing a capital letter.
+        guard !modifiers.isDisjoint(with: [.command, .control, .option]) || key.isFunctionKey else { return nil }
         self.init(key: key, modifiers: modifiers)
     }
 

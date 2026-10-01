@@ -6,33 +6,14 @@ import WindowEngine
 /// Popover editor for a single Hyper + key shortcut.
 /// Picking anything assigns it immediately; closing (Esc / click outside) never changes the binding.
 public struct BindingEditor: View {
-    enum Tab: String, CaseIterable, Identifiable {
-        case app = "App"
-        case window = "Window"
-        case folder = "Folder"
-        case menu = "Menu"
-
-        var id: Self { self }
-    }
-
     let keyCode: KeyCode
     @Bindable var bindingStore: BindingStore
     let onClose: () -> Void
-
-    @State private var tab: Tab
 
     public init(keyCode: KeyCode, bindingStore: BindingStore, onClose: @escaping () -> Void) {
         self.keyCode = keyCode
         self.bindingStore = bindingStore
         self.onClose = onClose
-
-        let initialTab: Tab = switch bindingStore.binding(for: keyCode).flatMap({ ActionKind($0.action) }) {
-        case .window: .window
-        case .menu: .menu
-        case .folder: .folder
-        default: .app
-        }
-        _tab = State(initialValue: initialTab)
     }
 
     private var currentAction: BoundAction? {
@@ -43,32 +24,7 @@ public struct BindingEditor: View {
         VStack(spacing: 0) {
             header
                 .padding(14)
-
-            Picker("Action type", selection: $tab) {
-                ForEach(Tab.allCases) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 14)
-            .padding(.bottom, 12)
-
-            Divider()
-
-            Group {
-                switch tab {
-                case .app:
-                    AppActionPicker(currentAction: currentAction, onAssign: assign)
-                case .window:
-                    WindowActionPicker(currentAction: currentAction, onAssign: assign)
-                case .folder:
-                    FolderActionPicker(currentAction: currentAction, onAssign: assign)
-                case .menu:
-                    MenuActionPicker(currentAction: currentAction, onAssign: assign)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ActionPicker(currentAction: currentAction, onPick: assign)
         }
         .frame(width: 390, height: 520)
     }
@@ -114,6 +70,140 @@ public struct BindingEditor: View {
     private func assign(_ action: BoundAction) {
         bindingStore.assign(action, to: keyCode)
         onClose()
+    }
+}
+
+/// The App / Window / Folder / Menu tabs for choosing what a shortcut does.
+public struct ActionPicker: View {
+    enum Tab: String, CaseIterable, Identifiable {
+        case app = "App"
+        case window = "Window"
+        case folder = "Folder"
+        case menu = "Menu"
+
+        var id: Self { self }
+    }
+
+    let currentAction: BoundAction?
+    let onPick: (BoundAction) -> Void
+
+    @State private var tab: Tab
+
+    public init(currentAction: BoundAction?, onPick: @escaping (BoundAction) -> Void) {
+        self.currentAction = currentAction
+        self.onPick = onPick
+        let initialTab: Tab = switch currentAction.flatMap({ ActionKind($0) }) {
+        case .window: .window
+        case .menu: .menu
+        case .folder: .folder
+        default: .app
+        }
+        _tab = State(initialValue: initialTab)
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            Picker("Action type", selection: $tab) {
+                ForEach(Tab.allCases) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 14)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            Group {
+                switch tab {
+                case .app:
+                    AppActionPicker(currentAction: currentAction, onAssign: onPick)
+                case .window:
+                    WindowActionPicker(currentAction: currentAction, onAssign: onPick)
+                case .folder:
+                    FolderActionPicker(currentAction: currentAction, onAssign: onPick)
+                case .menu:
+                    MenuActionPicker(currentAction: currentAction, onAssign: onPick)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// A sheet for a trigger (a shortcut or an alias) plus the action it runs.
+public struct ActionTriggerEditor<Trigger: View>: View {
+    let title: String
+    @Binding var action: BoundAction?
+    let canSave: Bool
+    let onSave: () -> Void
+    let onDelete: (() -> Void)?
+    let onCancel: () -> Void
+    let trigger: Trigger
+
+    public init(
+        title: String, action: Binding<BoundAction?>, canSave: Bool,
+        onSave: @escaping () -> Void, onDelete: (() -> Void)?, onCancel: @escaping () -> Void,
+        @ViewBuilder trigger: () -> Trigger
+    ) {
+        self.title = title
+        _action = action
+        self.canSave = canSave
+        self.onSave = onSave
+        self.onDelete = onDelete
+        self.onCancel = onCancel
+        self.trigger = trigger()
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+
+            trigger
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Does")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    if let presentation = action.flatMap(BindingPresentation.init) {
+                        BindingIcon(presentation: presentation, size: 24)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(presentation.title)
+                            Text(presentation.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("Pick an app, layout, folder or command below.")
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .frame(minHeight: 30)
+            }
+
+            ActionPicker(currentAction: action, onPick: { action = $0 })
+                .padding(.top, 10)
+                .frame(height: 340)
+                .hkCard()
+
+            HStack {
+                if let onDelete {
+                    Button("Delete", role: .destructive, action: onDelete)
+                }
+                Spacer()
+                Button("Cancel", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button("Save", action: onSave)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSave || action == nil)
+            }
+        }
+        .padding(22)
+        .frame(width: 480)
     }
 }
 

@@ -19,6 +19,9 @@ struct SettingsView: View {
     @State private var isChoosingICloudCopy = false
     @State private var syncError: String?
     @State private var isImportingFromRaycast = false
+    @State private var isConfirmingReset = false
+    @State private var didReset = false
+    @State private var resetBackup: URL?
 
     var body: some View {
         Form {
@@ -78,6 +81,19 @@ struct SettingsView: View {
                 .font(.caption)
             }
 
+            Section {
+                LabeledContent {
+                    Button("Reset…", role: .destructive) { isConfirmingReset = true }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Reset all settings")
+                        Text("Go back to the shortcuts and settings HyperKeys starts with.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             Section("About") {
                 HStack(spacing: 14) {
                     Image(nsImage: NSApp.applicationIconImage)
@@ -126,6 +142,19 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(syncError ?? "")
+        }
+        .confirmationDialog("Reset all settings?", isPresented: $isConfirmingReset) {
+            Button("Reset Settings", role: .destructive) { reset(includingContent: false) }
+            Button("Reset Everything", role: .destructive) { reset(includingContent: true) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(resetMessage)
+        }
+        .alert("Settings reset", isPresented: $didReset, presenting: resetBackup) { backup in
+            Button("Show Old Config") { NSWorkspace.shared.activateFileViewerSelecting([backup]) }
+            Button("OK", role: .cancel) {}
+        } message: { _ in
+            Text("Your old config.json was saved, in case you want something back.")
         }
         .alert("Couldn't change login item", isPresented: Binding(get: { loginItemError != nil }, set: { if !$0 { loginItemError = nil } })) {
             Button("OK", role: .cancel) {}
@@ -209,6 +238,23 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var resetMessage: String {
+        var message = "Your shortcuts, Hyper Key, aliases, profiles and options go back to how HyperKeys starts. "
+            + "Reset Everything also deletes your snippets, quicklinks and clipboard history. "
+            + "A copy of config.json is saved first."
+        if config.location == .iCloud {
+            message += " Your other Macs syncing with iCloud get the reset too."
+        }
+        return message
+    }
+
+    private func reset(includingContent: Bool) {
+        resetBackup = SettingsReset.resetAll(includingContent: includingContent)
+        onPauseChanged(false)
+        // Let the confirmation close before the next alert opens.
+        DispatchQueue.main.async { didReset = resetBackup != nil }
     }
 
     private var isLinkedElsewhere: Bool {

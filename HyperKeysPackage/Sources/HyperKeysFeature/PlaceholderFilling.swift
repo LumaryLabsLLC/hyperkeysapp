@@ -12,18 +12,18 @@ enum PlaceholderFiller {
     /// Returns nil when you cancel the prompt.
     static func fill(
         _ text: String, title: String, icon: NSImage? = nil,
-        app: NSRunningApplication?, encodesValues: Bool = false
+        app: NSRunningApplication?, encodesValues: Bool = false, presetArguments: [String: String] = [:]
     ) async -> String? {
         // Read the selection before anything else can change focus.
         let selection = Placeholders.needsSelection(text) ? await SelectedText.capture(from: app) : nil
 
-        var answers: [String: String] = [:]
-        let fields = Placeholders.arguments(in: text)
+        var answers = presetArguments
+        let fields = Placeholders.arguments(in: text).filter { presetArguments[$0.name] == nil }
         if !fields.isEmpty {
             guard let values = await ArgumentPrompt.shared.ask(title: title, icon: icon, fields: fields, returningTo: app) else {
                 return nil
             }
-            answers = values
+            answers.merge(values) { _, typed in typed }
         }
 
         let context = PlaceholderContext(

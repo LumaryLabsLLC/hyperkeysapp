@@ -14,11 +14,17 @@ public enum QuicklinkRunner {
         open(quicklink, from: NSWorkspace.shared.frontmostApplication)
     }
 
-    public static func open(_ quicklink: Quicklink, from app: NSRunningApplication?) {
+    /// `argument` fills the first `{argument}` (typed after an alias in App Search); any others are asked for.
+    public static func open(_ quicklink: Quicklink, from app: NSRunningApplication?, argument: String? = nil) {
         Task {
             let icon = icon(for: quicklink)
+            var preset: [String: String] = [:]
+            if let argument, let first = Placeholders.arguments(in: quicklink.link).first {
+                preset[first.name] = argument
+            }
             guard let link = await PlaceholderFiller.fill(
-                quicklink.link, title: quicklink.name, icon: icon, app: app, encodesValues: !quicklink.isLocal
+                quicklink.link, title: quicklink.name, icon: icon, app: app, encodesValues: !quicklink.isLocal,
+                presetArguments: preset
             ) else { return }
             open(link: link, isLocal: quicklink.isLocal, with: quicklink.openWith)
         }

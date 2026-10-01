@@ -117,6 +117,10 @@ enum EmojiRecents {
     private static let key = "emojiRecents"
     private static let limit = 36
 
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
     static func record(_ character: String) {
         var recents = all().filter { $0 != character }
         recents.insert(character, at: 0)

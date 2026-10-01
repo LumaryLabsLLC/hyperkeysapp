@@ -128,6 +128,28 @@ struct ClipboardHistoryStoreTests {
         #expect(store.items.first?.sourceName == "Notes")
     }
 
+    @Test func resettingRestoresOptionsAndRemoveAllTakesPinnedItemsToo() {
+        let box = Sandbox()
+        defer { box.remove() }
+        let store = box.store()
+        store.isEnabled = false
+        store.retention = .day
+        store.ignoredBundleIds = ["com.example.app"]
+        store.record(capture("pinned"), sourceBundleId: nil, sourceName: nil)
+        store.togglePin(id: store.items[0].id)
+        store.record(capture("loose"), sourceBundleId: nil, sourceName: nil)
+
+        store.resetOptions()
+        #expect(store.isEnabled)
+        #expect(store.retention == .month)
+        #expect(store.ignoredBundleIds == ClipboardHistoryStore.defaultIgnoredBundleIds)
+        #expect(store.items.count == 2)
+
+        store.removeAll()
+        #expect(store.items.isEmpty)
+        #expect(box.store().items.isEmpty)
+    }
+
     @Test func keepsHistoryAcrossLaunches() {
         let box = Sandbox()
         defer { box.remove() }
@@ -260,6 +282,8 @@ struct KeyComboTests {
     @Test func needsAModifierExceptForFunctionKeys() {
         #expect(KeyCombo(string: "v") == nil)
         #expect(KeyCombo(string: "hyper+v") == nil)
+        #expect(KeyCombo(string: "shift+v") == nil)
+        #expect(KeyCombo(string: "shift+f5")?.modifiers == [.shift])
         #expect(KeyCombo(string: "f5")?.key == .f5)
     }
 }

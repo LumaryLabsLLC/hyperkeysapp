@@ -70,16 +70,23 @@ struct MenuBarMenu: View {
 
     private var bindingStore: BindingStore { appState.bindingStore }
 
+    /// Kept short: App Search reaches every panel and command, so the menu only opens things
+    /// and holds the switches you'd want at a glance.
     var body: some View {
-        Button(statusLine) {}
-            .disabled(true)
-
         if !appState.permissionManager.allPermissionsGranted {
             Button("Grant Permissions…", action: openMainWindow)
+            Divider()
         }
 
+        Button("Open HyperKeys…", action: openMainWindow)
+            .keyboardShortcut(",")
+        Button("App Search…") {
+            AppSearchController.shared.show()
+        }
+
+        Divider()
+
         if !bindingStore.actionGroups.isEmpty {
-            Divider()
             Picker("Profile", selection: Binding(
                 get: { bindingStore.activeGroupId },
                 set: { bindingStore.setActiveGroup($0) }
@@ -90,38 +97,10 @@ struct MenuBarMenu: View {
                 }
             }
         }
-
-        Divider()
-
-        Button(menuTitle("Search Apps…", for: .appSearch)) {
-            AppSearchController.shared.show()
-        }
-        Button(menuTitle("Switch Apps…", for: .appSwitcher)) {
-            AppSwitcherController.shared.show()
-        }
-        Button(menuTitle("Emoji & Symbols…", for: .emojiPicker)) {
-            EmojiPickerController.shared.show()
-        }
-        Button(menuTitle("Snippets…", for: .snippets)) {
-            SnippetsPanelController.shared.show()
-        }
-        Button(menuTitle("Clipboard History…", for: .clipboardHistory)) {
-            ClipboardHistoryPanelController.shared.show()
-        }
-        Button(menuTitle("Search Menu Items…", for: .menuSearch)) {
-            MenuSearchController.shared.show()
-        }
-        Button(menuTitle("Kill Process…", for: .killProcess)) {
-            KillProcessController.shared.show()
-        }
         Toggle("Keep Mac Awake", isOn: Binding(
             get: { Caffeinate.shared.isActive },
             set: { $0 ? Caffeinate.shared.start() : Caffeinate.shared.stop() }
         ))
-
-        Button("Open HyperKeys…", action: openMainWindow)
-            .keyboardShortcut(",")
-
         Toggle("Pause Shortcuts", isOn: Binding(
             get: { appState.status.isPaused },
             set: { appState.setPaused($0) }
@@ -134,17 +113,6 @@ struct MenuBarMenu: View {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q")
-    }
-
-    private func menuTitle(_ title: String, for action: BoundAction) -> String {
-        guard let key = bindingStore.keyCode(for: action) else { return title }
-        return "\(title)  (Hyper + \(key.name))"
-    }
-
-    private var statusLine: String {
-        if !appState.permissionManager.allPermissionsGranted { return "HyperKeys needs permissions" }
-        if appState.status.isPaused { return "HyperKeys is paused" }
-        return "Hold \(bindingStore.hyperKeyCode.name) + a key"
     }
 
     private func openMainWindow() {

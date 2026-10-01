@@ -1,5 +1,7 @@
 import AppKit
 import EventEngine
+import HyperKeysFeature
+import KeyBindings
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Toggle dock icon visibility. When `show` is true, the app appears in the Dock.
@@ -31,6 +33,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
             NSApp.activate()
+        }
+    }
+
+    /// hyperkeys:// links. Handled with the Apple Event directly, so SwiftUI doesn't also open a window for them.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURL(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let string = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: string) else { return }
+        MainActor.assumeIsolated {
+            DeeplinkRouter.shared.open(url)
         }
     }
 

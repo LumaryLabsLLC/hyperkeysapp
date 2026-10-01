@@ -655,6 +655,14 @@ struct ReadmeConfigExampleTests {
   ],
   "quicklinks": [
     { "name": "Search GitHub", "link": "https://github.com/search?q={argument name=\"query\"}" }
+  ],
+  "hotkeys": [
+    { "shortcut": "shift+cmd+v", "command": "clipboardHistory" },
+    { "shortcut": "ctrl+cmd+l", "command": "lockScreen" }
+  ],
+  "aliases": [
+    { "alias": "gh", "quicklink": "Search GitHub" },
+    { "alias": "lh", "window": "leftHalf" }
   ]
 }
 """#
@@ -665,6 +673,9 @@ struct ReadmeConfigExampleTests {
         #expect(settings.bindings.count == 9)
         #expect(settings.snippets.count == 2)
         #expect(settings.quicklinks.map(\.name) == ["Search GitHub"])
+        #expect(settings.hotkeys.map(\.combo.displayLabel) == ["⇧⌘V", "⌃⌘L"])
+        #expect(settings.hotkeys.last?.action == .system(.lockScreen))
+        #expect(settings.aliases.map(\.text) == ["gh", "lh"])
         #expect(settings.snippets.last?.text == "Thanks,\nYou\n\nSent {date}")
         #expect(settings.profiles.first?.name == "Gaming")
         #expect(settings.windowGap == .small)

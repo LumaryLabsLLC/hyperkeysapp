@@ -171,6 +171,18 @@ extension View {
                     .strokeBorder(Color.cardStroke, lineWidth: 0.5)
             )
     }
+
+    /// A card holding a list of rows: clipped, so the first and last rows' highlights follow its corners.
+    public func hkListCard(cornerRadius: CGFloat = 14) -> some View {
+        clipShape(.rect(cornerRadius: cornerRadius, style: .continuous))
+            .hkCard(cornerRadius: cornerRadius)
+    }
+
+    /// A list row's hover highlight. Drawn as a plain rectangle: a bare color background takes on
+    /// the card's rounded shape, which rounds rows in the middle of the list.
+    public func hkRowHighlight(_ isOn: Bool) -> some View {
+        background(Rectangle().fill(isOn ? Color.primary.opacity(0.04) : Color.clear))
+    }
 }
 
 @available(macOS 26, *)

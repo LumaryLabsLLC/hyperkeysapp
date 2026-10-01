@@ -11,7 +11,6 @@ struct SnippetsPage: View {
     @State private var store = SnippetStore.shared
     @State private var navigation = NavigationRequests.shared
     @State private var draft: SnippetDraft?
-    @State private var pendingKey: KeyCode?
     @AppStorage(Preferences.expandSnippetKeywords) private var expandKeywords = true
     @State private var isImportingFromRaycast = false
 
@@ -73,7 +72,7 @@ struct SnippetsPage: View {
                             }
                         }
                     }
-                    .hkCard()
+                    .hkListCard()
                 }
 
                 Text("Placeholders like {clipboard}, {date} and {time} are filled in when you paste. Snippets are saved in config.json with the rest of your settings.")
@@ -109,21 +108,10 @@ struct SnippetsPage: View {
             }
             navigation.snippet = nil
         }
-        .confirmationDialog(
-            "Hyper + \(pendingKey?.displayLabel ?? "") is already in use",
-            isPresented: Binding(get: { pendingKey != nil }, set: { if !$0 { pendingKey = nil } }),
-            presenting: pendingKey
-        ) { key in
-            Button("Use for Snippets") { assign(key) }
-            Button("Cancel", role: .cancel) {}
-        } message: { key in
-            Text("It currently does “\(bindingStore.binding(for: key).flatMap { BindingPresentation($0.action) }?.summary ?? "something else")”. Replace it?")
-        }
     }
 
     private var panelCard: some View {
-        let key = bindingStore.keyCode(for: .snippets)
-        return HStack(spacing: 16) {
+        HStack(spacing: 16) {
             IconTile(symbol: ActionKind.snippets.symbol, color: ActionKind.snippets.color, size: 40)
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -133,14 +121,7 @@ struct SnippetsPage: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                ShortcutRecorder(
-                    keyCode: key,
-                    hyperKey: bindingStore.hyperKeyCode,
-                    onRecord: record,
-                    onClear: {
-                        if let key { bindingStore.clearBinding(for: key) }
-                    }
-                )
+                ActionShortcutField(action: .snippets, bindingStore: bindingStore)
             }
             Spacer(minLength: 12)
             Button("Try It") { SnippetsPanelController.shared.show() }
@@ -167,23 +148,6 @@ struct SnippetsPage: View {
         .padding(.vertical, 30)
         .frame(maxWidth: .infinity)
         .hkCard()
-    }
-
-    private func record(_ key: KeyCode) {
-        if let existing = bindingStore.binding(for: key), existing.action != .snippets {
-            pendingKey = key
-            return
-        }
-        assign(key)
-    }
-
-    private func assign(_ key: KeyCode) {
-        if let previous = bindingStore.keyCode(for: .snippets), previous != key {
-            bindingStore.clearBinding(for: previous)
-        }
-        withAnimation(.snappy) {
-            bindingStore.assign(.snippets, to: key)
-        }
     }
 }
 
@@ -235,7 +199,7 @@ private struct SnippetRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(isHovered ? Color.primary.opacity(0.04) : .clear)
+        .hkRowHighlight(isHovered)
         .contentShape(.rect)
         .onTapGesture(perform: onEdit)
         .onHover { isHovered = $0 }

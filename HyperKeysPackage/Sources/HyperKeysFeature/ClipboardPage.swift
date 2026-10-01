@@ -10,10 +10,8 @@ struct ClipboardPage: View {
     @Bindable var bindingStore: BindingStore
 
     @State private var store = ClipboardHistoryStore.shared
-    @State private var pendingKey: KeyCode?
     @State private var isConfirmingClear = false
     @State private var isAddingApp = false
-    @State private var hotKeys = GlobalHotKeys.shared
 
     var body: some View {
         PageScroll {
@@ -106,21 +104,10 @@ struct ClipboardPage: View {
         } message: {
             Text("Everything you've copied is deleted from HyperKeys. Pinned items are kept.")
         }
-        .confirmationDialog(
-            "Hyper + \(pendingKey?.displayLabel ?? "") is already in use",
-            isPresented: Binding(get: { pendingKey != nil }, set: { if !$0 { pendingKey = nil } }),
-            presenting: pendingKey
-        ) { key in
-            Button("Use for Clipboard History") { assign(key) }
-            Button("Cancel", role: .cancel) {}
-        } message: { key in
-            Text("It currently does “\(bindingStore.binding(for: key).flatMap { BindingPresentation($0.action) }?.summary ?? "something else")”. Replace it?")
-        }
     }
 
     private var panelCard: some View {
-        let key = bindingStore.keyCode(for: .clipboardHistory)
-        return HStack(spacing: 16) {
+        HStack(spacing: 16) {
             IconTile(symbol: ActionKind.clipboardHistory.symbol, color: ActionKind.clipboardHistory.color, size: 40)
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -130,30 +117,7 @@ struct ClipboardPage: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                HStack(spacing: 8) {
-                    ShortcutRecorder(
-                        keyCode: key,
-                        hyperKey: bindingStore.hyperKeyCode,
-                        onRecord: record,
-                        onClear: {
-                            if let key { bindingStore.clearBinding(for: key) }
-                        }
-                    )
-                    Text("or")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    KeyComboRecorder(
-                        combo: store.hotKey,
-                        onRecord: setHotKey,
-                        onClear: { setHotKey(nil) }
-                    )
-                }
-                if let combo = store.hotKey, hotKeys.conflicts.contains(combo) {
-                    Label("Another app is already using \(combo.displayLabel). Turn it off there (in Raycast, for example), or pick another shortcut.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                ActionShortcutField(action: .clipboardHistory, bindingStore: bindingStore)
             }
             Spacer(minLength: 12)
             Button("Try It") { ClipboardHistoryPanelController.shared.show() }
@@ -208,27 +172,5 @@ struct ClipboardPage: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-    }
-
-    private func setHotKey(_ combo: KeyCombo?) {
-        store.hotKey = combo
-        ClipboardHistoryPanelController.shared.applyHotKey()
-    }
-
-    private func record(_ key: KeyCode) {
-        if let existing = bindingStore.binding(for: key), existing.action != .clipboardHistory {
-            pendingKey = key
-            return
-        }
-        assign(key)
-    }
-
-    private func assign(_ key: KeyCode) {
-        if let previous = bindingStore.keyCode(for: .clipboardHistory), previous != key {
-            bindingStore.clearBinding(for: previous)
-        }
-        withAnimation(.snappy) {
-            bindingStore.assign(.clipboardHistory, to: key)
-        }
     }
 }

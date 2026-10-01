@@ -41,10 +41,21 @@ public final class AppState {
         // config.json is the source of truth; start following it before anything else changes settings.
         ConfigStore.shared.onHyperKeyChanged = { [weak self] in self?.updateHyperKey($0) }
         ConfigStore.shared.start(bindingStore: bindingStore)
+        actionExecutor = makeExecutor()
+        GlobalShortcutStore.shared.onUpdate = { [weak self] in self?.registerGlobalShortcuts() }
+        if let combo = ClipboardHistoryStore.shared.takeLegacyHotKey(),
+           GlobalShortcutStore.shared.shortcut(for: .clipboardHistory) == nil {
+            GlobalShortcutStore.shared.set(combo, for: .clipboardHistory)
+        }
+        registerGlobalShortcuts()
 
         AppSearchController.shared.bindingStore = bindingStore
         AppSearchController.shared.status = status
         AppSearchController.shared.onSetPaused = { [weak self] in self?.setPaused($0) }
+        AppSearchController.shared.perform = { [weak self] in self?.actionExecutor?.perform($0) }
+        DeeplinkRouter.shared.bindingStore = bindingStore
+        DeeplinkRouter.shared.perform = { [weak self] in self?.performFromShortcut($0) }
+        DeeplinkRouter.shared.setPaused = { [weak self] in self?.setPaused($0) }
         AppSwitcherController.shared.isHyperKeyDown = { [status] in status.isHyperKeyDown }
         // A keyboard Hyper key includes Shift, so Shift can't mean "go backwards" there.
         AppSwitcherController.shared.reversesWithShift = { [bindingStore] in bindingStore.hyperKeyCode != .modifierHyper }
@@ -63,7 +74,6 @@ public final class AppState {
             MenuSearchController.shared.warmUp()
             ClipboardMonitor.shared.start()
             GlobalHotKeys.shared.isPaused = self.status.isPaused
-            ClipboardHistoryPanelController.shared.applyHotKey()
         }
     }
 
@@ -82,15 +92,7 @@ public final class AppState {
             return
         }
 
-        let executor = ActionExecutor(bindingStore: bindingStore)
-        executor.onShowAppSearch = { AppSearchController.shared.toggle() }
-        executor.onShowAppSwitcher = { AppSwitcherController.shared.shortcutPressed() }
-        executor.onShowEmojiPicker = { EmojiPickerController.shared.toggle() }
-        executor.onShowSnippets = { SnippetsPanelController.shared.toggle() }
-        executor.onShowClipboardHistory = { ClipboardHistoryPanelController.shared.toggle() }
-        executor.onShowKillProcess = { KillProcessController.shared.toggle() }
-        executor.onShowMenuSearch = { MenuSearchController.shared.toggle() }
-        executor.onOpenQuicklink = { QuicklinkRunner.open(named: $0) }
+        let executor = actionExecutor ?? makeExecutor()
         actionExecutor = executor
 
         let manager = EventTapManager()
@@ -197,6 +199,49 @@ public final class AppState {
         if keyIsFree, !alreadyBound, bindingStore.hyperKeyCode != key {
             bindingStore.setBinding(KeyBinding(keyCode: key, action: action))
         }
+    }
+
+    private func makeExecutor() -> ActionExecutor {
+        let executor = ActionExecutor(bindingStore: bindingStore)
+        executor.onShowAppSearch = { AppSearchController.shared.toggle() }
+        executor.onShowAppSwitcher = { AppSwitcherController.shared.shortcutPressed() }
+        executor.onShowEmojiPicker = { EmojiPickerController.shared.toggle() }
+        executor.onShowSnippets = { SnippetsPanelController.shared.toggle() }
+        executor.onShowClipboardHistory = { ClipboardHistoryPanelController.shared.toggle() }
+        executor.onShowKillProcess = { KillProcessController.shared.toggle() }
+        executor.onShowMenuSearch = { MenuSearchController.shared.toggle() }
+        executor.onOpenQuicklink = { QuicklinkRunner.open(named: $0) }
+        return executor
+    }
+
+    // MARK: - Regular shortcuts
+
+    /// Names registered with macOS, so removed shortcuts can be released.
+    private var registeredShortcutNames: Set<String> = []
+
+    /// Registers every regular shortcut (⌥Space, ⇧⌘V…) with macOS, releasing removed ones.
+    private func registerGlobalShortcuts() {
+        let shortcuts = GlobalShortcutStore.shared.shortcuts.filter(\.isEnabled)
+        let names = Set(shortcuts.map { "shortcut-\($0.id.uuidString)" })
+        for stale in registeredShortcutNames.subtracting(names) {
+            GlobalHotKeys.shared.set(nil, for: stale) {}
+        }
+        for shortcut in shortcuts {
+            let action = shortcut.action
+            GlobalHotKeys.shared.set(shortcut.combo, for: "shortcut-\(shortcut.id.uuidString)") { [weak self] in
+                self?.performFromShortcut(action)
+            }
+        }
+        registeredShortcutNames = names
+    }
+
+    private func performFromShortcut(_ action: BoundAction) {
+        if action == .appSwitcher {
+            // Without Hyper held there's nothing to release, so open it to pick with the keyboard.
+            AppSwitcherController.shared.show()
+            return
+        }
+        actionExecutor?.perform(action)
     }
 
     func stopEventTap() {

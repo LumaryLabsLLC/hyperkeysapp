@@ -135,7 +135,21 @@ struct AppSearchLauncherView: View {
                 Text(item.title)
                     .font(.system(size: 14))
                     .lineLimit(1)
-                if case .command(let command) = item {
+                if let alias = model.aliasLabels[item.id] {
+                    Text(alias)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(.primary.opacity(0.08), in: .rect(cornerRadius: 4, style: .continuous))
+                        .help("Alias")
+                }
+                if let argument = model.aliasArgument, argument.itemId == item.id {
+                    Text(argument.text.isEmpty ? "Type to search" : "“\(argument.text)”")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else if case .command(let command) = item {
                     Text(command.subtitle)
                         .font(.system(size: 13))
                         .foregroundStyle(.tertiary)
@@ -151,6 +165,10 @@ struct AppSearchLauncherView: View {
                 Spacer(minLength: 8)
                 if let key = model.shortcuts[item.id] {
                     HyperComboView(hyperKey: model.hyperKey, key: key, height: 17)
+                        .opacity(0.85)
+                }
+                if let combo = model.combos[item.id] {
+                    ComboKeycaps(combo: combo, height: 17)
                         .opacity(0.85)
                 }
                 Text(item.typeLabel)
@@ -201,6 +219,8 @@ struct AppSearchLauncherView: View {
                 } else {
                     IconTile(symbol: ActionKind.quicklink.symbol, color: ActionKind.quicklink.color, size: 22)
                 }
+            case .binding(let presentation):
+                BindingIcon(presentation: presentation, size: 22)
             }
         }
     }

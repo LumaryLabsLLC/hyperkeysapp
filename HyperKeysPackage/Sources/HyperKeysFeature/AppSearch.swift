@@ -18,6 +18,8 @@ struct LauncherCommand: Identifiable {
         case file(String)
         /// A quicklink's own icon (the website's, once fetched).
         case quicklink(Quicklink)
+        /// Whatever a shortcut for the same action shows (an alias to a menu command, say).
+        case binding(BindingPresentation)
     }
 
     let id: String
@@ -36,8 +38,12 @@ struct LauncherCommand: Identifiable {
     var isSystem = false
     /// Listed in the Quicklinks section of the home screen.
     var isQuicklink = false
+    /// Only found by its alias, not by its title.
+    var isAliasOnly = false
     /// Runs after the launcher closes. Receives the app that was in front before it opened.
     let run: @MainActor (NSRunningApplication?) -> Void
+    /// For quicklinks with an `{argument}`: runs with the text typed after its alias ("gh swift").
+    var runWithArgument: (@MainActor (NSRunningApplication?, String) -> Void)?
 }
 
 enum LauncherItem: Identifiable {
@@ -115,6 +121,13 @@ final class AppSearchModel {
     /// Item id → key, for showing an existing Hyper shortcut next to apps and commands.
     private(set) var shortcuts: [String: KeyCode] = [:]
     private(set) var hyperKey: KeyCode = .capsLock
+    /// Item id → its regular shortcut (⇧⌘V), shown like the Hyper ones.
+    private(set) var combos: [String: KeyCombo] = [:]
+    /// Item id → its alias, shown next to the title.
+    private(set) var aliasLabels: [String: String] = [:]
+    /// While the query is an alias plus text ("gh swift"): the quicklink it opens and the text.
+    private(set) var aliasArgument: (itemId: String, text: String)?
+    private var aliasItems: [String: LauncherItem] = [:]
 
     let provider = InstalledAppProvider.shared
     private var runningIds: Set<String> = []
@@ -126,18 +139,20 @@ final class AppSearchModel {
     private static let maxRecentsShown = 5
     private static let maxResults = 30
 
-    func prepare(bindingStore: BindingStore?, commands: [LauncherCommand]) {
+    func prepare(bindingStore: BindingStore?, commands: [LauncherCommand], aliases: [Alias] = [], hotkeys: [GlobalShortcut] = []) {
         prepare(
             bindings: bindingStore?.activeBindings ?? [],
             hyperKey: bindingStore?.hyperKeyCode ?? .capsLock,
             commands: commands,
+            aliases: aliases,
+            hotkeys: hotkeys,
             commandKey: { action in bindingStore?.keyCode(for: action) }
         )
     }
 
     func prepare(
-        bindings: [KeyBinding], hyperKey: KeyCode, commands: [LauncherCommand],
-        commandKey: (BoundAction) -> KeyCode? = { _ in nil }
+        bindings: [KeyBinding], hyperKey: KeyCode, commands: [LauncherCommand], aliases: [Alias] = [],
+        hotkeys: [GlobalShortcut] = [], commandKey: (BoundAction) -> KeyCode? = { _ in nil }
     ) {
         provider.loadIfNeeded()
         self.commands = commands
@@ -178,8 +193,37 @@ final class AppSearchModel {
                 }
             }
         }
+
+        combos = [:]
+        for hotkey in hotkeys where hotkey.isEnabled {
+            if let item = item(for: hotkey.action) {
+                combos[item.id] = hotkey.combo
+            }
+        }
+
+        aliasItems = [:]
+        aliasLabels = [:]
+        for alias in aliases {
+            guard let item = item(for: alias.action) else { continue }
+            aliasItems[alias.text] = item
+            aliasLabels[item.id] = alias.text
+        }
         query = ""
         recompute()
+    }
+
+    /// The row that runs `action`: the app, the folder, or the command.
+    private func item(for action: BoundAction) -> LauncherItem? {
+        switch action {
+        case .launchApp(let bundleId, _):
+            return candidates.first { $0.bundleIdentifier == bundleId }.map(LauncherItem.app)
+        case .openFolder(let path) where folders.contains(path):
+            return .folder(path: path)
+        default:
+            // Prefer the regular command over the alias-only one made for the same action.
+            let matching = commands.filter { $0.action == action }
+            return (matching.first { !$0.isAliasOnly } ?? matching.first).map(LauncherItem.command)
+        }
     }
 
     func requestFocus() {
@@ -243,22 +287,44 @@ final class AppSearchModel {
         }
 
         var scored: [(item: LauncherItem, score: Int)] = []
+        // "gh swift": an alias, then the text for its quicklink's argument.
+        aliasArgument = nil
+        if let space = needle.firstIndex(of: " "),
+           let item = aliasItems[String(needle[..<space])],
+           case .command(let command) = item, command.runWithArgument != nil {
+            let typed = query.trimmingCharacters(in: .whitespaces)
+            let text = typed[typed.index(after: typed.firstIndex(of: " ") ?? typed.startIndex)...]
+                .trimmingCharacters(in: .whitespaces)
+            aliasArgument = (item.id, text)
+            scored.append((item, 3000))
+        }
+        func aliasScore(_ id: String) -> Int? {
+            guard let alias = aliasLabels[id], aliasArgument?.itemId != id else { return nil }
+            if alias == needle { return 2000 }
+            return alias.hasPrefix(needle) ? 950 : nil
+        }
+
         for app in candidates {
-            guard var score = Self.score(app.name.lowercased(), query: needle) else { continue }
+            let id = LauncherItem.app(app).id
+            let alias = aliasScore(id)
+            guard var score = Self.score(app.name.lowercased(), query: needle) ?? alias else { continue }
             if runningIds.contains(app.bundleIdentifier) { score += 25 }
             if let index = recentIds.firstIndex(of: app.bundleIdentifier) { score += 60 - index * 5 }
-            scored.append((.app(app), score))
+            scored.append((.app(app), max(score, alias ?? 0)))
         }
         for path in folders {
             // Match the folder's name or its path ("down" → Downloads, "dev/proj" → ~/Developer/projects).
             let scores = [LauncherItem.folderName(path), path, "folder"].compactMap { Self.score($0.lowercased(), query: needle) }
-            if let best = scores.max() {
-                scored.append((.folder(path: path), best + 20))
+            let alias = aliasScore(LauncherItem.folder(path: path).id)
+            if let best = [scores.max().map { $0 + 20 }, alias].compactMap(\.self).max() {
+                scored.append((.folder(path: path), best))
             }
         }
         for command in commands {
-            let scores = ([command.title] + command.keywords).compactMap { Self.score($0.lowercased(), query: needle) }
-            if let best = scores.max() {
+            let names = command.isAliasOnly ? [] : [command.title] + command.keywords
+            let scores = names.compactMap { Self.score($0.lowercased(), query: needle) }
+            let alias = aliasScore(LauncherItem.command(command).id)
+            if let best = [scores.max(), alias].compactMap(\.self).max() {
                 scored.append((.command(command), best))
             }
         }
@@ -306,6 +372,8 @@ public final class AppSearchController {
     public var status: HyperKeyStatus?
     /// Pauses or resumes all shortcuts; provided by the app layer.
     public var onSetPaused: ((Bool) -> Void)?
+    /// Runs any action, for aliases to things App Search doesn't list (a menu command, say).
+    public var perform: ((BoundAction) -> Void)?
 
     let model = AppSearchModel()
     static let width: CGFloat = 640
@@ -327,7 +395,10 @@ public final class AppSearchController {
 
     public func show() {
         let host = makeHostIfNeeded()
-        model.prepare(bindingStore: bindingStore, commands: makeCommands())
+        model.prepare(
+            bindingStore: bindingStore, commands: makeCommands(),
+            aliases: AliasStore.shared.aliases, hotkeys: GlobalShortcutStore.shared.shortcuts
+        )
         host.show()
         // Focus once the panel is actually key, otherwise the first keystrokes can be lost.
         DispatchQueue.main.async { [model] in
@@ -345,9 +416,14 @@ public final class AppSearchController {
             open(app)
         case .command(let command):
             let previousApp = host?.previousApp
+            let argument = model.aliasArgument.flatMap { $0.itemId == item.id ? $0.text : nil }
             // Commands that open another panel or move a window manage focus themselves.
             host?.hide(restoringFocus: false)
-            command.run(previousApp)
+            if let argument, let runWithArgument = command.runWithArgument {
+                runWithArgument(previousApp, argument)
+            } else {
+                command.run(previousApp)
+            }
         case .folder(let path):
             host?.hide(restoringFocus: false)
             SystemCommands.open(path: path)
@@ -495,7 +571,7 @@ public final class AppSearchController {
         }
 
         for quicklink in QuicklinkStore.shared.quicklinks {
-            commands.append(LauncherCommand(
+            var command = LauncherCommand(
                 id: "quicklink-\(quicklink.id.uuidString)", title: quicklink.name, subtitle: quicklink.displayLink,
                 icon: .quicklink(quicklink),
                 keywords: [quicklink.displayLink, "quicklink", "link"],
@@ -503,7 +579,13 @@ public final class AppSearchController {
                 action: .quicklink(name: quicklink.name), isQuicklink: true
             ) { previousApp in
                 QuicklinkRunner.open(quicklink, from: previousApp)
-            })
+            }
+            if !Placeholders.arguments(in: quicklink.link).isEmpty {
+                command.runWithArgument = { previousApp, text in
+                    QuicklinkRunner.open(quicklink, from: previousApp, argument: text)
+                }
+            }
+            commands.append(command)
         }
 
         // Every window layout, found by searching ("left half", "center", …).
@@ -521,7 +603,28 @@ public final class AppSearchController {
                 }
             })
         }
+        commands += aliasOnlyCommands(besides: commands)
         return commands
+    }
+
+    /// Aliases can name anything a shortcut can. Those App Search doesn't otherwise list
+    /// (a menu command, a group of apps, a folder without a shortcut) get a row of their own,
+    /// found only by the alias. Apps are left to the app list.
+    func aliasOnlyCommands(besides commands: [LauncherCommand], aliases: [Alias] = AliasStore.shared.aliases) -> [LauncherCommand] {
+        let listed = Set(commands.compactMap(\.action))
+        return aliases.compactMap { alias in
+            if case .launchApp = alias.action { return nil }
+            guard !listed.contains(alias.action), let presentation = BindingPresentation(alias.action) else { return nil }
+            let action = alias.action
+            return LauncherCommand(
+                id: "alias-\(alias.id.uuidString)", title: presentation.title, subtitle: presentation.summary,
+                icon: .binding(presentation), typeLabel: presentation.kind.title, actionTitle: "Run",
+                action: action, isAliasOnly: true
+            ) { [weak self] previousApp in
+                previousApp?.activate()
+                self?.perform?(action)
+            }
+        }
     }
 
     // MARK: Panel

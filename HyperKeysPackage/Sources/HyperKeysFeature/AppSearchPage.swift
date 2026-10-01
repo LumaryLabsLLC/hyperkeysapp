@@ -11,7 +11,6 @@ struct AppSearchPage: View {
 
     @State private var provider = InstalledAppProvider.shared
     @AppStorage(Preferences.switcherStaysOpen) private var switcherStaysOpen = false
-    @State private var pending: (action: BoundAction, key: KeyCode)?
     private var searchModel: AppSearchModel { AppSearchController.shared.model }
 
     var body: some View {
@@ -60,6 +59,8 @@ struct AppSearchPage: View {
                 detail: "Every app and process, by CPU or memory. Return quits the one you pick; ⌘Return force quits it.",
                 tryIt: { KillProcessController.shared.show() }
             )
+
+            AliasesSection()
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Keys")
@@ -123,18 +124,6 @@ struct AppSearchPage: View {
             provider.loadIfNeeded()
             searchModel.loadRecents()
         }
-        .confirmationDialog(
-            "Hyper + \(pending?.key.displayLabel ?? "") is already in use",
-            isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
-            presenting: pending
-        ) { pending in
-            Button("Use for \(ActionKind(pending.action)?.title ?? "This")") {
-                assign(pending.action, to: pending.key)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: { pending in
-            Text("It currently does “\(bindingStore.binding(for: pending.key).flatMap { BindingPresentation($0.action) }?.summary ?? "something else")”. Replace it?")
-        }
     }
 
     private func featureCard(action: BoundAction, detail: String, tryIt: @escaping () -> Void) -> some View {
@@ -148,7 +137,6 @@ struct AppSearchPage: View {
         @ViewBuilder accessory: () -> Accessory
     ) -> some View {
         let kind = ActionKind(action) ?? .appSearch
-        let key = bindingStore.keyCode(for: action)
 
         return HStack(spacing: 16) {
             IconTile(symbol: kind.symbol, color: kind.color, size: 40)
@@ -161,17 +149,8 @@ struct AppSearchPage: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                HStack(spacing: 12) {
-                    ShortcutRecorder(
-                        keyCode: key,
-                        hyperKey: bindingStore.hyperKeyCode,
-                        onRecord: { record(action, key: $0) },
-                        onClear: {
-                            if let key { bindingStore.clearBinding(for: key) }
-                        }
-                    )
-                    accessory()
-                }
+                ActionShortcutField(action: action, bindingStore: bindingStore)
+                accessory()
             }
             Spacer(minLength: 12)
             Button("Try It", action: tryIt)
@@ -197,22 +176,5 @@ struct AppSearchPage: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-    }
-
-    private func record(_ action: BoundAction, key: KeyCode) {
-        if let existing = bindingStore.binding(for: key), existing.action != action {
-            pending = (action, key)
-            return
-        }
-        assign(action, to: key)
-    }
-
-    private func assign(_ action: BoundAction, to key: KeyCode) {
-        if let previous = bindingStore.keyCode(for: action), previous != key {
-            bindingStore.clearBinding(for: previous)
-        }
-        withAnimation(.snappy) {
-            bindingStore.assign(action, to: key)
-        }
     }
 }

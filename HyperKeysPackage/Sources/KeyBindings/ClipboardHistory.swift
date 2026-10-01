@@ -260,11 +260,6 @@ public final class ClipboardHistoryStore {
         }
     }
 
-    /// A regular shortcut that opens the panel, like ⇧⌘V, besides any Hyper shortcut.
-    public var hotKey: KeyCombo? {
-        didSet { defaults.set(hotKey?.string, forKey: Keys.hotKey) }
-    }
-
     /// Apps whose copies are never saved. Password managers to start with.
     public var ignoredBundleIds: [String] {
         didSet { defaults.set(ignoredBundleIds, forKey: Keys.ignored) }
@@ -288,7 +283,8 @@ public final class ClipboardHistoryStore {
         static let enabled = "clipboardHistoryEnabled"
         static let retention = "clipboardHistoryRetention"
         static let ignored = "clipboardHistoryIgnoredApps"
-        static let hotKey = "clipboardHistoryHotKey"
+        /// Where the ⇧⌘V-style shortcut lived before regular shortcuts moved to config.json.
+        static let legacyHotKey = "clipboardHistoryHotKey"
     }
 
     public init(
@@ -300,12 +296,18 @@ public final class ClipboardHistoryStore {
         isEnabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
         retention = defaults.string(forKey: Keys.retention).flatMap(ClipboardRetention.init) ?? .month
         ignoredBundleIds = defaults.stringArray(forKey: Keys.ignored) ?? Self.defaultIgnoredBundleIds
-        hotKey = defaults.string(forKey: Keys.hotKey).flatMap(KeyCombo.init(string:))
         load()
         prune()
     }
 
     public var pinnedItems: [ClipboardItem] { items.filter(\.isPinned) }
+
+    /// The regular shortcut saved by an earlier version, once; it now lives with the other shortcuts.
+    public func takeLegacyHotKey() -> KeyCombo? {
+        guard let saved = defaults.string(forKey: Keys.legacyHotKey) else { return nil }
+        defaults.removeObject(forKey: Keys.legacyHotKey)
+        return KeyCombo(string: saved)
+    }
 
     public func item(id: UUID) -> ClipboardItem? {
         items.first { $0.id == id }
@@ -360,6 +362,21 @@ public final class ClipboardHistoryStore {
     public func delete(id: UUID) {
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         removeFiles(of: items.remove(at: index))
+        save()
+    }
+
+    /// Back to the options it starts with: on, kept for a month, password managers left out.
+    public func resetOptions() {
+        isEnabled = true
+        retention = .month
+        ignoredBundleIds = Self.defaultIgnoredBundleIds
+    }
+
+    /// Deletes everything, pinned items too.
+    public func removeAll() {
+        let removed = items
+        items = []
+        removed.forEach(removeFiles)
         save()
     }
 

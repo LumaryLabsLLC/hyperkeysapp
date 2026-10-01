@@ -46,8 +46,12 @@ public final class ActionExecutor {
             actionLog("No binding for Hyper+\(keyCode.displayLabel). Active bindings count=\(bindingStore.activeBindings.count)")
             return
         }
+        perform(binding.action)
+    }
 
-        switch binding.action {
+    /// Runs an action directly — from a regular shortcut or a deeplink.
+    public func perform(_ action: BoundAction) {
+        switch action {
         case .launchApp(let bundleId, let appName):
             actionLog("Toggling \(appName) (\(bundleId))")
             AppLauncher.toggleApp(bundleIdentifier: bundleId)

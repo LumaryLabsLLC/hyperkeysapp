@@ -36,6 +36,90 @@ public struct ConfigDocument: Codable, Equatable, Sendable {
     public var snippets: [SnippetEntry]?
     /// Saved links, folders and deeplinks, opened from App Search or a shortcut.
     public var quicklinks: [QuicklinkEntry]?
+    /// Regular shortcuts like "opt+space", besides the Hyper ones. Same actions as `shortcuts`.
+    public var hotkeys: [HotkeyEntry]?
+    /// Short words that find something in App Search: `{ "alias": "gh", "quicklink": "Search GitHub" }`.
+    public var aliases: [AliasEntry]?
+
+    /// `{ "alias": "gh", "quicklink": "Search GitHub" }`: an alias plus one action,
+    /// written with the same fields as a Hyper shortcut (minus `key`).
+    public struct AliasEntry: Codable, Equatable, Sendable {
+        public var alias: String
+        public var action: Shortcut
+
+        private enum CodingKeys: String, CodingKey { case alias }
+
+        public init(alias: String, action: Shortcut) {
+            self.alias = alias
+            self.action = action
+        }
+
+        public init(from decoder: Decoder) throws {
+            alias = try decoder.container(keyedBy: CodingKeys.self).decode(String.self, forKey: .alias)
+            action = try ActionFields(from: decoder).shortcut(key: "")
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(alias, forKey: .alias)
+            try ActionFields(action).encode(to: encoder)
+        }
+    }
+
+    /// `{ "shortcut": "shift+cmd+v", "command": "clipboardHistory" }`: a shortcut plus one action,
+    /// written with the same fields as a Hyper shortcut (minus `key`).
+    public struct HotkeyEntry: Codable, Equatable, Sendable {
+        public var shortcut: String
+        public var action: Shortcut
+
+        private enum CodingKeys: String, CodingKey { case shortcut }
+
+        public init(shortcut: String, action: Shortcut) {
+            self.shortcut = shortcut
+            self.action = action
+        }
+
+        public init(from decoder: Decoder) throws {
+            shortcut = try decoder.container(keyedBy: CodingKeys.self).decode(String.self, forKey: .shortcut)
+            action = try ActionFields(from: decoder).shortcut(key: "")
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(shortcut, forKey: .shortcut)
+            try ActionFields(action).encode(to: encoder)
+        }
+    }
+
+    /// A shortcut's action fields without its key.
+    struct ActionFields: Codable {
+        var openApp: String?
+        var openApps: [GroupApp]?
+        var window: String?
+        var menu: MenuCommand?
+        var openFolder: String?
+        var quicklink: String?
+        var command: String?
+        var name: String?
+        var enabled: Bool?
+
+        init(_ shortcut: Shortcut) {
+            openApp = shortcut.openApp
+            openApps = shortcut.openApps
+            window = shortcut.window
+            menu = shortcut.menu
+            openFolder = shortcut.openFolder
+            quicklink = shortcut.quicklink
+            command = shortcut.command
+            name = shortcut.name
+            enabled = shortcut.enabled
+        }
+
+        func shortcut(key: String) -> Shortcut {
+            Shortcut(key: key, openApp: openApp, openApps: openApps, window: window, menu: menu,
+                     openFolder: openFolder, quicklink: quicklink, command: command, name: name, enabled: enabled)
+        }
+    }
 
     public struct QuicklinkEntry: Codable, Equatable, Sendable {
         public var name: String
@@ -102,15 +186,19 @@ public struct ConfigSettings {
     public var doubleTapOpensWindow = true
     public var snippets: [Snippet] = []
     public var quicklinks: [Quicklink] = []
+    public var hotkeys: [GlobalShortcut] = []
+    public var aliases: [Alias] = []
 
     public init(
         bindings: [KeyBinding] = [], profiles: [ActionGroup] = [], appGroups: [AppGroup] = [],
         hyperKey: KeyCode = .capsLock, windowGap: WindowGap = .none,
         switcherStaysOpen: Bool = false, doubleTapOpensWindow: Bool = true, snippets: [Snippet] = [],
-        quicklinks: [Quicklink] = []
+        quicklinks: [Quicklink] = [], hotkeys: [GlobalShortcut] = [], aliases: [Alias] = []
     ) {
+        self.aliases = aliases
         self.snippets = snippets
         self.quicklinks = quicklinks
+        self.hotkeys = hotkeys
         self.bindings = bindings
         self.profiles = profiles
         self.appGroups = appGroups
@@ -169,8 +257,29 @@ public enum ConfigCodec {
             },
             quicklinks: settings.quicklinks.isEmpty ? nil : settings.quicklinks.map {
                 ConfigDocument.QuicklinkEntry(name: $0.name, link: $0.link, openWith: $0.openWith)
-            }
+            },
+            hotkeys: hotkeys(settings.hotkeys, groups: groupsById),
+            aliases: aliases(settings.aliases, groups: groupsById)
         )
+    }
+
+    @MainActor
+    private static func aliases(_ aliases: [Alias], groups: [UUID: AppGroup]) -> [ConfigDocument.AliasEntry]? {
+        let entries = aliases.compactMap { alias -> ConfigDocument.AliasEntry? in
+            guard let action = shortcut(for: KeyBinding(keyCode: .a, action: alias.action), groups: groups) else { return nil }
+            return ConfigDocument.AliasEntry(alias: alias.text, action: action)
+        }
+        return entries.isEmpty ? nil : entries
+    }
+
+    @MainActor
+    private static func hotkeys(_ shortcuts: [GlobalShortcut], groups: [UUID: AppGroup]) -> [ConfigDocument.HotkeyEntry]? {
+        let entries = shortcuts.compactMap { hotkey -> ConfigDocument.HotkeyEntry? in
+            guard let action = shortcut(for: KeyBinding(keyCode: .a, action: hotkey.action, isEnabled: hotkey.isEnabled), groups: groups)
+            else { return nil }
+            return ConfigDocument.HotkeyEntry(shortcut: hotkey.combo.string, action: action)
+        }
+        return entries.isEmpty ? nil : entries
     }
 
     /// Converts a document into settings. Problems that don't stop the rest from loading
@@ -219,6 +328,37 @@ public enum ConfigCodec {
             Quicklink(id: stableID(for: "quicklink:\(entry.name)"), name: entry.name, link: entry.link, openWith: entry.openWith)
         }
         settings.bindings = bindings(document.shortcuts, in: "shortcuts")
+        var seenCombos = Set<KeyCombo>()
+        settings.hotkeys = (document.hotkeys ?? []).compactMap { entry in
+            guard let combo = KeyCombo(string: entry.shortcut) else {
+                warnings.append("hotkeys: “\(entry.shortcut)” isn't a shortcut HyperKeys understands. Write it like \"opt+space\" or \"shift+cmd+v\".")
+                return nil
+            }
+            guard seenCombos.insert(combo).inserted else {
+                warnings.append("hotkeys: “\(entry.shortcut)” is listed twice — keeping the first.")
+                return nil
+            }
+            guard let action = action(for: entry.action, groups: &settings.appGroups, warnings: &warnings, place: "hotkeys") else {
+                return nil
+            }
+            return GlobalShortcut(id: stableID(for: "hotkey:\(combo.string)"), combo: combo, action: action, isEnabled: entry.action.enabled ?? true)
+        }
+        var seenAliases = Set<String>()
+        settings.aliases = (document.aliases ?? []).compactMap { entry in
+            let text = Alias.normalized(entry.alias)
+            guard !text.isEmpty else {
+                warnings.append("aliases: an alias can't be empty.")
+                return nil
+            }
+            guard seenAliases.insert(text).inserted else {
+                warnings.append("aliases: “\(entry.alias)” is listed twice — keeping the first.")
+                return nil
+            }
+            guard let action = action(for: entry.action, groups: &settings.appGroups, warnings: &warnings, place: "aliases") else {
+                return nil
+            }
+            return Alias(id: stableID(for: "alias:\(text)"), text: text, action: action)
+        }
         settings.snippets = (document.snippets ?? []).enumerated().map { index, entry in
             Snippet(id: stableID(for: "snippet:\(index):\(entry.name)"), name: entry.name, text: entry.text, tags: entry.tags ?? [], keyword: entry.keyword)
         }
@@ -231,7 +371,7 @@ public enum ConfigCodec {
     // MARK: Helpers
 
     @MainActor
-    private static func shortcut(for binding: KeyBinding, groups: [UUID: AppGroup]) -> ConfigDocument.Shortcut? {
+    static func shortcut(for binding: KeyBinding, groups: [UUID: AppGroup]) -> ConfigDocument.Shortcut? {
         var shortcut = ConfigDocument.Shortcut(key: binding.keyCode.configName)
         switch binding.action {
         case .launchApp(let bundleId, let appName):
@@ -279,7 +419,7 @@ public enum ConfigCodec {
     }
 
     @MainActor
-    private static func action(
+    static func action(
         for shortcut: ConfigDocument.Shortcut, groups: inout [AppGroup], warnings: inout [String], place: String
     ) -> BoundAction? {
         let label = "\(place) “\(shortcut.key)”"

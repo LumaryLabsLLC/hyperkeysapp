@@ -85,6 +85,8 @@ public final class ConfigStore {
         AppGroupStore.shared.onChange = { [weak self] in self?.save() }
         SnippetStore.shared.onChange = { [weak self] in self?.save() }
         QuicklinkStore.shared.onChange = { [weak self] in self?.save() }
+        GlobalShortcutStore.shared.onChange = { [weak self] in self?.save() }
+        AliasStore.shared.onChange = { [weak self] in self?.save() }
 
         let center = NotificationCenter.default
         observers = [
@@ -152,8 +154,11 @@ public final class ConfigStore {
     }
 
     private func currentSettings(_ store: BindingStore) -> ConfigSettings {
-        let referenced = Set((store.bindings + store.actionGroups.flatMap(\.bindings)).compactMap { binding -> UUID? in
-            if case .showAppGroup(let id) = binding.action { return id }
+        let actions = (store.bindings + store.actionGroups.flatMap(\.bindings)).map(\.action)
+            + GlobalShortcutStore.shared.shortcuts.map(\.action)
+            + AliasStore.shared.aliases.map(\.action)
+        let referenced = Set(actions.compactMap { action -> UUID? in
+            if case .showAppGroup(let id) = action { return id }
             return nil
         })
         return ConfigSettings(
@@ -165,7 +170,9 @@ public final class ConfigStore {
             switcherStaysOpen: Preferences.isSwitcherStayOpen,
             doubleTapOpensWindow: Preferences.isDoubleTapEnabled,
             snippets: SnippetStore.shared.snippets,
-            quicklinks: QuicklinkStore.shared.quicklinks
+            quicklinks: QuicklinkStore.shared.quicklinks,
+            hotkeys: GlobalShortcutStore.shared.shortcuts,
+            aliases: AliasStore.shared.aliases
         )
     }
 
@@ -216,6 +223,8 @@ public final class ConfigStore {
         AppGroupStore.shared.replaceAll(settings.appGroups)
         SnippetStore.shared.replaceAll(settings.snippets)
         QuicklinkStore.shared.replaceAll(settings.quicklinks)
+        GlobalShortcutStore.shared.replaceAll(settings.hotkeys)
+        AliasStore.shared.replaceAll(settings.aliases)
         bindingStore.apply(bindings: settings.bindings, profiles: settings.profiles, hyperKey: settings.hyperKey)
 
         // The active profile is remembered by name, per Mac.
@@ -233,6 +242,54 @@ public final class ConfigStore {
 
         if settings.hyperKey != previousHyperKey {
             onHyperKeyChanged?(settings.hyperKey)
+        }
+    }
+
+    // MARK: - Reset
+
+    /// What a fresh install starts with: Hyper + Space for App Search, Hyper + Tab for the App Switcher,
+    /// Caps Lock as the Hyper key, and every option at its default.
+    public static func defaultSettings(snippets: [Snippet] = [], quicklinks: [Quicklink] = []) -> ConfigSettings {
+        ConfigSettings(
+            bindings: [KeyBinding(keyCode: .space, action: .appSearch), KeyBinding(keyCode: .tab, action: .appSwitcher)],
+            snippets: snippets,
+            quicklinks: quicklinks
+        )
+    }
+
+    /// Puts shortcuts and settings back the way a fresh install has them, after copying config.json
+    /// to `backupFolder`. Snippets and quicklinks are kept unless `includingContent`.
+    /// - Returns: The copy of the old config, if there was one to copy.
+    @discardableResult
+    public func resetToDefaults(includingContent: Bool, backupFolder: URL = ConfigStore.backupFolder) -> URL? {
+        guard let bindingStore else { return nil }
+        let backup = copyConfig(to: backupFolder, prefix: "config.before-reset")
+        UserDefaults.standard.removeObject(forKey: Self.activeProfileKey)
+        bindingStore.activeGroupId = nil
+        apply(includingContent
+            ? Self.defaultSettings()
+            : Self.defaultSettings(snippets: SnippetStore.shared.snippets, quicklinks: QuicklinkStore.shared.quicklinks))
+        save()
+        return backup
+    }
+
+    /// Where copies of config.json go before a reset: out of the way of dotfiles and iCloud.
+    public static var backupFolder: URL {
+        Persistence.appSupportURL.appendingPathComponent("Backups", isDirectory: true)
+    }
+
+    /// Copies config.json into `folder` as "<prefix>-<date>.json".
+    func copyConfig(to folder: URL, prefix: String) -> URL? {
+        let source = resolvedURL
+        guard FileManager.default.fileExists(atPath: source.path) else { return nil }
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let copy = folder.appendingPathComponent("\(prefix)-\(stamp).json")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: source, to: copy)
+            return copy
+        } catch {
+            return nil
         }
     }
 
