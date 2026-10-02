@@ -72,6 +72,7 @@ public final class AppState {
             ClipboardHistoryPanelController.shared.warmUp()
             KillProcessController.shared.warmUp()
             MenuSearchController.shared.warmUp()
+            GifSearchController.shared.warmUp()
             ClipboardMonitor.shared.start()
             GlobalHotKeys.shared.isPaused = self.status.isPaused
         }
@@ -210,6 +211,7 @@ public final class AppState {
         executor.onShowClipboardHistory = { ClipboardHistoryPanelController.shared.toggle() }
         executor.onShowKillProcess = { KillProcessController.shared.toggle() }
         executor.onShowMenuSearch = { MenuSearchController.shared.toggle() }
+        executor.onShowGifSearch = { GifSearchController.shared.toggle() }
         executor.onOpenQuicklink = { QuicklinkRunner.open(named: $0) }
         return executor
     }

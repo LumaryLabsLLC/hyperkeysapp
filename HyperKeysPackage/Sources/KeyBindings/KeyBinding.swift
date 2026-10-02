@@ -25,6 +25,8 @@ public enum BoundAction: Codable, Sendable, Hashable {
     case killProcess
     /// Searches the menus of the app you're in and runs the item you pick.
     case menuSearch
+    /// Searches GIPHY and Klipy for GIFs and clips to copy or paste.
+    case gifSearch
     /// Opens a saved quicklink, by name.
     case quicklink(name: String)
     /// Lock, sleep, log out, restart, shut down, or keep the Mac awake.

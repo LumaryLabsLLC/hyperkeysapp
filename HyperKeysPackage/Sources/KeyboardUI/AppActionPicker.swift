@@ -36,6 +36,7 @@ struct AppActionPicker: View {
                         builtInRow(.clipboardHistory, subtitle: "Search and paste what you've copied")
                         builtInRow(.killProcess, subtitle: "Quit or force quit a running app or process")
                         builtInRow(.menuSearch, subtitle: "Find and run any menu command in the app you're in")
+                        builtInRow(.gifSearch, subtitle: "Find a GIF on GIPHY or Klipy and copy it")
                         builtInRow(.emptyTrash, subtitle: "Empty the Trash (asks first)")
                         if !quicklinks.quicklinks.isEmpty {
                             PickerSectionHeader(title: "Quicklinks")

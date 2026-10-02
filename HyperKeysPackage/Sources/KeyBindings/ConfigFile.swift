@@ -405,6 +405,8 @@ public enum ConfigCodec {
             shortcut.command = "killProcess"
         case .menuSearch:
             shortcut.command = "menuSearch"
+        case .gifSearch:
+            shortcut.command = "gifSearch"
         case .quicklink(let name):
             shortcut.quicklink = name
         case .system(let action):
@@ -468,12 +470,13 @@ public enum ConfigCodec {
             case "clipboardHistory": return .clipboardHistory
             case "killProcess": return .killProcess
             case "menuSearch": return .menuSearch
+            case "gifSearch": return .gifSearch
             case "emptyTrash": return .emptyTrash
             default:
                 if let action = SystemAction(rawValue: command) {
                     return .system(action)
                 }
-                warnings.append("\(label): unknown command “\(command)”. Use appSearch, appSwitcher, emojiPicker, snippets, clipboardHistory, killProcess, menuSearch, emptyTrash, or a system command such as lockScreen.")
+                warnings.append("\(label): unknown command “\(command)”. Use appSearch, appSwitcher, emojiPicker, snippets, clipboardHistory, killProcess, menuSearch, gifSearch, emptyTrash, or a system command such as lockScreen.")
                 return nil
             }
         }

@@ -497,6 +497,14 @@ public final class AppSearchController {
                 MenuSearchController.shared.show(returningTo: previousApp)
             },
             LauncherCommand(
+                id: "gif-search", title: "Search GIFs", subtitle: "HyperKeys",
+                icon: .symbol(ActionKind.gifSearch.symbol, ActionKind.gifSearch.color),
+                keywords: ["gif", "gifs", "giphy", "klipy", "clips", "meme", "reaction", "sticker"],
+                action: .gifSearch, isSuggested: true
+            ) { previousApp in
+                GifSearchController.shared.show(returningTo: previousApp)
+            },
+            LauncherCommand(
                 id: "new-snippet", title: "Create Snippet", subtitle: "HyperKeys",
                 icon: .symbol("plus", ActionKind.snippets.color),
                 keywords: ["new snippet", "add snippet", "snippets"]

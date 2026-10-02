@@ -14,6 +14,7 @@ Turn Caps Lock into a **Hyper Key**. Hold it and press another key to open an ap
 - **Snippets:** text you paste often, with keywords that expand as you type and placeholders like `{clipboard}` and `{date}`.
 - **Quicklinks:** websites, folders and app links, with `{argument}` to search as you open them.
 - **Search Menu Items:** run any menu command in the app you're using.
+- **GIFs:** search GIPHY and Klipy, then copy or paste a GIF or clip, with favorites and recents.
 - **Emoji & Symbols**, **Kill Process**, and **system commands** like Lock Screen, Sleep, volume, Dark Mode and Caffeinate.
 - **Profiles**, a **config file** for your dotfiles, **iCloud sync**, **deeplinks** for scripts, and **import from Raycast**.
 
@@ -99,6 +100,12 @@ Save the websites, folders and app links you open often, on the **Quicklinks** p
 Find any menu command in the app you're using and press Return to run it. Each item shows its own keyboard shortcut, so you learn them as you go. Open it from App Search, or give it a shortcut on the **Search & Switch** page.
 
 ![Search Menu Items](pics/menu-search.png)
+
+### GIFs
+
+Search GIPHY GIFs, GIPHY Clips (short videos with sound) and Klipy from anywhere. **Return** copies the GIF, **⌘Return** pastes it into the app you were in, **⌘F** stars it, and **Tab** switches source. Your favorites and recently used GIFs have their own sources too. Open it from App Search, or give it a shortcut on the **Search & Switch** page.
+
+GIPHY and Klipy each need a free API key. Paste yours into the panel the first time, or on the **Search & Switch** page. Get one from [GIPHY](https://developers.giphy.com/dashboard/) or [Klipy](https://partner.klipy.com/). Keys are kept in your keychain, not in `config.json`.
 
 ### Clipboard History
 
@@ -192,7 +199,7 @@ Edit it by hand or keep it in your dotfiles. HyperKeys reloads it whenever it ch
 | `windowGap` | `none`, `small`, `medium`, `large`, `extraLarge` |
 | `appSwitcher` | `hold` (⌘-Tab style) or `stayOpen` (navigate with h j k l) |
 | `key` | `a`–`z`, `0`–`9`, `f1`–`f12`, `space`, `tab`, `return`, `delete`, `left`, `right`, `up`, `down`, `backtick`, `minus`, `equals`, `leftBracket`, `rightBracket`, `backslash`, `semicolon`, `quote`, `comma`, `period`, `slash` |
-| action | one of `openApp` (bundle id), `openApps`, `window` (a layout or move such as `leftHalf`, `center`, `topRightSixth`, `nextDisplay`, `restore`), `menu`, `openFolder` (a path; `~` works), `quicklink` (a quicklink's name), or `command` (`appSearch`, `appSwitcher`, `emojiPicker`, `snippets`, `clipboardHistory`, `killProcess`, `menuSearch`, `emptyTrash`, or a system command listed below) |
+| action | one of `openApp` (bundle id), `openApps`, `window` (a layout or move such as `leftHalf`, `center`, `topRightSixth`, `nextDisplay`, `restore`), `menu`, `openFolder` (a path; `~` works), `quicklink` (a quicklink's name), or `command` (`appSearch`, `appSwitcher`, `emojiPicker`, `snippets`, `clipboardHistory`, `killProcess`, `menuSearch`, `gifSearch`, `emptyTrash`, or a system command listed below) |
 | `snippets` | `name`, `text`, and optional `tags` and `keyword` (typed anywhere, it turns into the snippet). Placeholders (below) are filled in when you paste. |
 | `hotkeys` | regular shortcuts: `shortcut` (`ctrl`, `opt`, `shift`, `cmd` and a key, joined with `+`; needs ⌃, ⌥ or ⌘ unless it's an F key) plus one action, written like in `shortcuts` |
 | `aliases` | `alias` (one word, typed in App Search) plus one action, written like in `shortcuts` |

@@ -262,7 +262,7 @@ struct KeyView: View {
             } else {
                 AppIconStack(icons: presentation.icons, size: size)
             }
-        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .emptyTrash, .system:
+        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .gifSearch, .emptyTrash, .system:
             Image(systemName: presentation.symbol)
                 .font(.system(size: size * 0.62, weight: .bold))
                 .foregroundStyle(presentation.kind.color)

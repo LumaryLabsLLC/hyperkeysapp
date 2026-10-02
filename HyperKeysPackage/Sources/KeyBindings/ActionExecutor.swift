@@ -33,6 +33,8 @@ public final class ActionExecutor {
     public var onShowKillProcess: (() -> Void)?
     /// Shows Search Menu Items; provided by the app layer.
     public var onShowMenuSearch: (() -> Void)?
+    /// Shows GIF search; provided by the app layer.
+    public var onShowGifSearch: (() -> Void)?
     /// Opens a quicklink by name (asking for any arguments); provided by the app layer.
     public var onOpenQuicklink: ((String) -> Void)?
 
@@ -105,6 +107,10 @@ public final class ActionExecutor {
         case .menuSearch:
             actionLog("Showing Search Menu Items")
             onShowMenuSearch?()
+
+        case .gifSearch:
+            actionLog("Showing GIF search")
+            onShowGifSearch?()
 
         case .quicklink(let name):
             actionLog("Opening quicklink \(name)")

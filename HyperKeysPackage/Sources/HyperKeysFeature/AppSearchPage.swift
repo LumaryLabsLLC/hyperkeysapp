@@ -55,6 +55,14 @@ struct AppSearchPage: View {
             )
 
             featureCard(
+                action: .gifSearch,
+                detail: "Search GIPHY and Klipy for GIFs and clips. Return copies, ⌘Return pastes into the app you were in, ⌘F stars, ⇥ switches source.",
+                tryIt: { GifSearchController.shared.show() }
+            ) {
+                GifKeysEditor()
+            }
+
+            featureCard(
                 action: .killProcess,
                 detail: "Every app and process, by CPU or memory. Return quits the one you pick; ⌘Return force quits it.",
                 tryIt: { KillProcessController.shared.show() }

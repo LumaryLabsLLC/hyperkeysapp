@@ -125,6 +125,12 @@ public struct BindingPresentation: Equatable, Sendable {
             appBundleIds = []
             windowPosition = nil
 
+        case .gifSearch:
+            title = "Search GIFs"
+            subtitle = "Find a GIF or clip on GIPHY or Klipy and copy it"
+            appBundleIds = []
+            windowPosition = nil
+
         case .system(let action):
             title = action.title
             subtitle = action.detail
@@ -161,6 +167,7 @@ public struct BindingPresentation: Equatable, Sendable {
         case .clipboardHistory: "Open Clipboard History"
         case .killProcess: "Open Kill Process"
         case .menuSearch: "Search the current app's menus"
+        case .gifSearch: "Search for GIFs"
         case .quicklink: "Open \(title)"
         case .system: title
         case .emptyTrash: "Empty the Trash"
@@ -194,7 +201,7 @@ public struct BindingIcon: View {
             } else {
                 AppIconStack(icons: presentation.icons, size: size)
             }
-        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .emptyTrash, .system:
+        case .appSearch, .appSwitcher, .emojiPicker, .snippets, .clipboardHistory, .killProcess, .menuSearch, .gifSearch, .emptyTrash, .system:
             IconTile(symbol: presentation.symbol, color: presentation.kind.color, size: size)
         case .menu:
             ZStack(alignment: .bottomTrailing) {

@@ -38,7 +38,7 @@ extension Color {
 
 /// The four things a shortcut can do, each with a consistent color and symbol.
 public enum ActionKind: CaseIterable, Sendable {
-    case app, appGroup, window, menu, folder, quicklink, appSearch, appSwitcher, emojiPicker, snippets, clipboardHistory, killProcess, menuSearch, emptyTrash, system
+    case app, appGroup, window, menu, folder, quicklink, appSearch, appSwitcher, emojiPicker, snippets, clipboardHistory, killProcess, menuSearch, gifSearch, emptyTrash, system
 
     public init?(_ action: BoundAction) {
         switch action {
@@ -55,6 +55,7 @@ public enum ActionKind: CaseIterable, Sendable {
         case .clipboardHistory: self = .clipboardHistory
         case .killProcess: self = .killProcess
         case .menuSearch: self = .menuSearch
+        case .gifSearch: self = .gifSearch
         case .quicklink: self = .quicklink
         case .system: self = .system
         case .none: return nil
@@ -75,6 +76,7 @@ public enum ActionKind: CaseIterable, Sendable {
         case .clipboardHistory: "Clipboard History"
         case .killProcess: "Kill Process"
         case .menuSearch: "Search Menu Items"
+        case .gifSearch: "Search GIFs"
         case .quicklink: "Quicklink"
         case .emptyTrash: "Empty Trash"
         case .system: "System"
@@ -95,6 +97,7 @@ public enum ActionKind: CaseIterable, Sendable {
         case .clipboardHistory: "doc.on.clipboard"
         case .killProcess: "xmark.octagon.fill"
         case .menuSearch: "filemenu.and.cursorarrow"
+        case .gifSearch: "photo.stack.fill"
         case .quicklink: "link"
         case .emptyTrash: "trash.fill"
         case .system: "power"
@@ -115,6 +118,7 @@ public enum ActionKind: CaseIterable, Sendable {
         case .clipboardHistory: .brown
         case .killProcess: .red
         case .menuSearch: .orange
+        case .gifSearch: Color(red: 0.62, green: 0.36, blue: 0.96)
         case .quicklink: Color(red: 0.13, green: 0.59, blue: 0.95)
         case .emptyTrash: .gray
         case .system: Color(red: 0.42, green: 0.47, blue: 0.56)
