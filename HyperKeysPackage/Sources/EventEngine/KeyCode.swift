@@ -84,6 +84,12 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
     case f11 = 0x67
     case f12 = 0x6F
 
+    // Right-side modifiers, usable only as the hyper key (they're remapped to F18, see HyperKeyRemapper)
+    case rightCommand = 0x36
+    case rightShift = 0x3C
+    case rightOption = 0x3D
+    case rightControl = 0x3E
+
     /// Not a physical key: the hyper key is a keyboard that sends ⌃⌥⇧⌘ together
     /// (a hardware "Hyper" key on Kinesis, ZSA, QMK/ZMK boards, …).
     case modifierHyper = 0xFFFF
@@ -161,6 +167,10 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
         case .f10: "F10"
         case .f11: "F11"
         case .f12: "F12"
+        case .rightCommand: "R⌘"
+        case .rightShift: "R⇧"
+        case .rightOption: "R⌥"
+        case .rightControl: "R⌃"
         case .modifierHyper: "✦"
         }
     }
@@ -190,15 +200,19 @@ public enum KeyCode: UInt16, CaseIterable, Codable, Sendable {
         case .rightArrow: "Right Arrow"
         case .upArrow: "Up Arrow"
         case .downArrow: "Down Arrow"
+        case .rightCommand: "Right Command"
+        case .rightShift: "Right Shift"
+        case .rightOption: "Right Option"
+        case .rightControl: "Right Control"
         case .modifierHyper: "Hyper (⌃⌥⇧⌘)"
         default: displayLabel
         }
     }
 
-    /// Keys that can be bound to Hyper+ actions (excludes escape)
+    /// Keys that can be bound to Hyper+ actions (excludes escape and modifiers)
     public var isBindable: Bool {
         switch self {
-        case .escape, .modifierHyper:
+        case .escape, .modifierHyper, .rightCommand, .rightShift, .rightOption, .rightControl:
             return false
         default:
             return true
@@ -235,13 +249,17 @@ extension KeyCode {
         case .comma: "comma"
         case .period: "period"
         case .slash: "slash"
+        case .rightCommand: "rightCommand"
+        case .rightShift: "rightShift"
+        case .rightOption: "rightOption"
+        case .rightControl: "rightControl"
         case .modifierHyper: "keyboardHyper"
         default: displayLabel.lowercased() // a–z, 0–9, f1–f12, f18
         }
     }
 
     /// Reads a key name from `config.json`. Case-insensitive; also accepts the literal character
-    /// ("`", "[", "/") and a few common spellings ("esc", "enter", "grave", "hyper").
+    /// ("`", "[", "/") and a few common spellings ("esc", "enter", "grave", "hyper", "rightAlt").
     public init?(configName name: String) {
         let lowered = name.trimmingCharacters(in: .whitespaces).lowercased()
         let aliases: [String: KeyCode] = [
@@ -249,7 +267,8 @@ extension KeyCode {
             "grave": .grave, "`": .grave, "-": .minus, "=": .equal, "equal": .equal, "[": .leftBracket,
             "]": .rightBracket, "\\": .backslash, ";": .semicolon, "'": .quote, ",": .comma, ".": .period,
             "/": .slash, "hyper": .modifierHyper, "arrowleft": .leftArrow, "arrowright": .rightArrow,
-            "arrowup": .upArrow, "arrowdown": .downArrow,
+            "arrowup": .upArrow, "arrowdown": .downArrow, "rightalt": .rightOption, "rightcmd": .rightCommand,
+            "rightctrl": .rightControl,
         ]
         if let key = aliases[lowered] ?? KeyCode.allCases.first(where: { $0.configName.lowercased() == lowered }) {
             self = key

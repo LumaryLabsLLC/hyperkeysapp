@@ -134,7 +134,7 @@ Log Out, Restart and Shut Down ask first, the same way the Apple menu does. Empt
 
 ### Choosing the Hyper Key
 
-Caps Lock is the default. Backtick and Tab work too; a quick tap still types them. You can also pick any other key, or a keyboard's own Hyper key that sends ⌃⌥⇧⌘, like a Kinesis.
+Caps Lock is the default. Backtick and Tab work too; a quick tap still types them. **Right Option** leaves Caps Lock free (handy if you've made it Control in System Settings); it stops working as ⌥ while HyperKeys is running, and Left Option still does. You can also pick any other key, including Right Command, Right Control or Right Shift, or a keyboard's own Hyper key that sends ⌃⌥⇧⌘, like a Kinesis.
 
 ![Hyper Key](pics/hyper-key.png)
 
@@ -195,7 +195,7 @@ Edit it by hand or keep it in your dotfiles. HyperKeys reloads it whenever it ch
 
 | Field | Values |
 |---|---|
-| `hyperKey` | `capsLock`, `backtick`, `tab`, `keyboardHyper` (a keyboard that sends ⌃⌥⇧⌘), or any key name |
+| `hyperKey` | `capsLock`, `backtick`, `tab`, `rightOption`, `rightCommand`, `rightControl`, `rightShift`, `keyboardHyper` (a keyboard that sends ⌃⌥⇧⌘), or any key name |
 | `windowGap` | `none`, `small`, `medium`, `large`, `extraLarge` |
 | `appSwitcher` | `hold` (⌘-Tab style) or `stayOpen` (navigate with h j k l) |
 | `key` | `a`–`z`, `0`–`9`, `f1`–`f12`, `space`, `tab`, `return`, `delete`, `left`, `right`, `up`, `down`, `backtick`, `minus`, `equals`, `leftBracket`, `rightBracket`, `backslash`, `semicolon`, `quote`, `comma`, `period`, `slash` |

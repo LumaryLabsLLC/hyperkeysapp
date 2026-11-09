@@ -55,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        CapsLockRemapper.disable()
+        HyperKeyRemapper.disable()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

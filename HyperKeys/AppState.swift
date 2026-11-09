@@ -101,18 +101,7 @@ public final class AppState {
             MainActor.assumeIsolated { KeywordExpander.shared.handle(key) }
         }
 
-        // Caps Lock is remapped to F18 via hidutil at the IOKit level,
-        // so the engine listens for F18 while the UI shows Caps Lock.
-        let hyperKey = bindingStore.hyperKeyCode
-        if hyperKey == .capsLock {
-            CapsLockRemapper.enable()
-            manager.engine.hyperKeyCode = KeyCode.f18.rawValue
-            manager.engine.logicalHyperKey = .capsLock
-        } else {
-            CapsLockRemapper.disable()
-            manager.engine.hyperKeyCode = hyperKey.rawValue
-            manager.engine.logicalHyperKey = hyperKey
-        }
+        applyHyperKey(bindingStore.hyperKeyCode, to: manager.engine)
         let status = status
         let bindingStore = bindingStore
         // The tap runs on the main run loop, so these callbacks are already on the main thread.
@@ -248,7 +237,7 @@ public final class AppState {
 
     func stopEventTap() {
         retryTask?.cancel()
-        CapsLockRemapper.disable()
+        HyperKeyRemapper.disable()
         eventTapManager?.stop()
         eventTapManager = nil
         status.isHyperKeyDown = false
@@ -268,16 +257,17 @@ public final class AppState {
 
     func updateHyperKey(_ keyCode: KeyCode) {
         bindingStore.setHyperKey(keyCode)
-        eventTapManager?.engine.reset()
-        if keyCode == .capsLock {
-            CapsLockRemapper.enable()
-            eventTapManager?.engine.hyperKeyCode = KeyCode.f18.rawValue
-            eventTapManager?.engine.logicalHyperKey = .capsLock
-        } else {
-            CapsLockRemapper.disable()
-            eventTapManager?.engine.hyperKeyCode = keyCode.rawValue
-            eventTapManager?.engine.logicalHyperKey = keyCode
-        }
+        guard let engine = eventTapManager?.engine else { return }
+        engine.reset()
+        applyHyperKey(keyCode, to: engine)
+    }
+
+    /// Caps Lock and right-side modifiers are remapped to F18 via hidutil at the IOKit level,
+    /// so the engine listens for F18 while the UI shows the key the user picked.
+    private func applyHyperKey(_ key: KeyCode, to engine: HyperKeyEngine) {
+        HyperKeyRemapper.apply(for: key)
+        engine.hyperKeyCode = HyperKeyRemapper.tapKeyCode(for: key)
+        engine.logicalHyperKey = key
     }
 
 }

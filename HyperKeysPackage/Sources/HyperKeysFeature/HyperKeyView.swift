@@ -1,3 +1,4 @@
+import AppKit
 import EventEngine
 import KeyBindings
 import KeyboardUI
@@ -23,6 +24,7 @@ struct HyperKeyView: View {
         Preset(key: .capsLock, title: "Caps Lock", detail: "Recommended — easy to reach and rarely needed."),
         Preset(key: .grave, title: "Backtick", detail: "A quick tap still types ` as usual."),
         Preset(key: .tab, title: "Tab", detail: "A quick tap still types a tab."),
+        Preset(key: .rightOption, title: "Right Option", detail: "Leaves Caps Lock free. Left Option works as usual."),
         Preset(key: .modifierHyper, title: "Keyboard Hyper key", detail: "Your keyboard's own Hyper key (⌃⌥⇧⌘), e.g. Kinesis."),
     ]
 
@@ -166,7 +168,7 @@ struct HyperKeyView: View {
         return optionCard(
             keyLabel: isCustom ? hyperKey.displayLabel : "…",
             title: isRecording ? "Press a key…" : (isCustom ? hyperKey.name : "Another key"),
-            detail: isRecording ? "Press the key you want to use, or Esc to cancel." : "Click, then press any key — including your keyboard's own Hyper key.",
+            detail: isRecording ? "Press the key you want to use, or Esc to cancel." : "Click, then press any key — even Right ⌘ or your keyboard's own Hyper key.",
             isSelected: isCustom,
             action: toggleRecording
         )
@@ -181,22 +183,9 @@ struct HyperKeyView: View {
             recorder.cancel()
             return
         }
+        var capture = HyperKeyCapture(currentHyperKey: hyperKey)
         recorder.begin(id: recorderID) { event in
-            // A keyboard with a built-in Hyper key sends ⌃⌥⇧⌘ all at once.
-            if event.type == .flagsChanged, event.modifierFlags.contains([.command, .control, .option, .shift]) {
-                choose(.modifierHyper)
-                return true
-            }
-            // With the Caps Lock remap active, Caps Lock arrives as F18.
-            if event.type == .keyDown, event.keyCode == KeyCode.f18.rawValue {
-                choose(.capsLock)
-                return true
-            }
-            if event.type == .flagsChanged, event.keyCode == KeyCode.capsLock.rawValue {
-                choose(.capsLock)
-                return true
-            }
-            guard event.type == .keyDown, let key = KeyCode(rawValue: event.keyCode), key != .escape else { return false }
+            guard let key = capture.handle(type: event.type, keyCode: event.keyCode, flags: event.modifierFlags) else { return false }
             choose(key)
             return true
         }
@@ -213,6 +202,7 @@ struct HyperKeyView: View {
         switch hyperKey {
         case .capsLock: "Caps Lock no longer toggles capitals while HyperKeys is running."
         case .modifierHyper: "Combos you haven't assigned still reach other apps as ⌃⌥⇧⌘ shortcuts."
+        case let key where key.isRemappedToF18: "\(key.name) no longer works as a modifier while HyperKeys is running. The left one still does."
         default: "Types \(hyperKey.name) like normal."
         }
     }
@@ -233,5 +223,63 @@ struct HyperKeyView: View {
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .hkCard()
+    }
+}
+
+/// Turns what the "Another key" recorder hears into a hyper key choice.
+struct HyperKeyCapture {
+    /// The hyper key in use when recording started.
+    let currentHyperKey: KeyCode
+    /// A right-side modifier held on its own. It's chosen when it's released with nothing else pressed,
+    /// so a keyboard's own Hyper key, which presses four modifiers in a row, isn't mistaken for one.
+    private var soloModifier: KeyCode?
+
+    init(currentHyperKey: KeyCode) {
+        self.currentHyperKey = currentHyperKey
+    }
+
+    /// The key to use as the hyper key, or nil to keep listening.
+    mutating func handle(type: NSEvent.EventType, keyCode: UInt16, flags: NSEvent.ModifierFlags) -> KeyCode? {
+        let modifiers = flags.intersection([.command, .control, .option, .shift])
+        let pending = soloModifier
+        soloModifier = nil
+
+        if type == .flagsChanged {
+            // A keyboard with a built-in Hyper key sends ⌃⌥⇧⌘ all at once.
+            if modifiers == [.command, .control, .option, .shift] { return .modifierHyper }
+            if keyCode == KeyCode.capsLock.rawValue { return .capsLock }
+            guard let key = KeyCode(rawValue: keyCode), let modifier = Self.rightModifier(key) else { return nil }
+            if flags.rawValue & modifier.deviceMask != 0 {
+                // On its own: no other modifier, not even the same one on the left.
+                if modifiers == modifier.flag, flags.rawValue & Self.deviceModifierBits == modifier.deviceMask {
+                    soloModifier = key
+                }
+                return nil
+            }
+            return pending == key ? key : nil
+        }
+
+        guard type == .keyDown else { return nil }
+        // Caps Lock and right-side modifiers arrive as F18 while they're the hyper key.
+        if keyCode == KeyCode.f18.rawValue {
+            return currentHyperKey.isRemappedToF18 ? currentHyperKey : .capsLock
+        }
+        guard let key = KeyCode(rawValue: keyCode), key != .escape else { return nil }
+        return key
+    }
+
+    /// The device bits of all eight modifier keys, left and right (NX_DEVICE*KEYMASK).
+    private static let deviceModifierBits: UInt = 0x207F
+
+    /// The modifier a right-side key holds, and its device bit in the event flags (NX_DEVICER*KEYMASK),
+    /// which tells it apart from the left one and shows whether it went down or up.
+    private static func rightModifier(_ key: KeyCode) -> (flag: NSEvent.ModifierFlags, deviceMask: UInt)? {
+        switch key {
+        case .rightControl: (.control, 0x2000)
+        case .rightShift: (.shift, 0x04)
+        case .rightCommand: (.command, 0x10)
+        case .rightOption: (.option, 0x40)
+        default: nil
+        }
     }
 }

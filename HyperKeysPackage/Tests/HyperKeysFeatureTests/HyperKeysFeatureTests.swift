@@ -1,3 +1,4 @@
+import AppKit
 import AppSwitcher
 import CoreGraphics
 import EventEngine
@@ -61,6 +62,93 @@ struct KeyAssignabilityTests {
 
     @Test func lettersAreAssignable() {
         #expect(KeyCode.t.isAssignable(hyperKey: .capsLock))
+    }
+
+    @Test func rightModifiersAreNeverAssignable() {
+        for key in [KeyCode.rightOption, .rightCommand, .rightControl, .rightShift] {
+            #expect(!key.isAssignable(hyperKey: .capsLock), "\(key)")
+        }
+    }
+}
+
+// MARK: - Choosing the hyper key
+
+struct HyperKeyRemapTests {
+    @Test func capsLockAndRightModifiersListenForF18() {
+        for key in [KeyCode.capsLock, .rightOption, .rightCommand, .rightControl, .rightShift] {
+            #expect(key.isRemappedToF18, "\(key)")
+            #expect(HyperKeyRemapper.tapKeyCode(for: key) == KeyCode.f18.rawValue, "\(key)")
+        }
+    }
+
+    @Test func otherKeysListenForThemselves() {
+        for key in [KeyCode.grave, .tab, .f5] {
+            #expect(!key.isRemappedToF18, "\(key)")
+            #expect(HyperKeyRemapper.tapKeyCode(for: key) == key.rawValue, "\(key)")
+        }
+    }
+}
+
+@MainActor
+struct HyperKeyCaptureTests {
+    // Device bits for the right-side modifiers (NX_DEVICER*KEYMASK).
+    private static let rightOptionBit = NSEvent.ModifierFlags(rawValue: 0x40)
+    private static let leftOptionBit = NSEvent.ModifierFlags(rawValue: 0x20)
+    private static let rightCommandBit = NSEvent.ModifierFlags(rawValue: 0x10)
+
+    @Test func rightOptionPressedAndReleasedOnItsOwn() {
+        var capture = HyperKeyCapture(currentHyperKey: .capsLock)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: [.option, Self.rightOptionBit]) == nil)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: []) == .rightOption)
+    }
+
+    @Test func rightCommandOnItsOwn() {
+        var capture = HyperKeyCapture(currentHyperKey: .capsLock)
+        _ = capture.handle(type: .flagsChanged, keyCode: KeyCode.rightCommand.rawValue, flags: [.command, Self.rightCommandBit])
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightCommand.rawValue, flags: []) == .rightCommand)
+    }
+
+    @Test func rightOptionUsedWithAKeyIsNotChosen() {
+        var capture = HyperKeyCapture(currentHyperKey: .capsLock)
+        _ = capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: [.option, Self.rightOptionBit])
+        #expect(capture.handle(type: .keyDown, keyCode: KeyCode.t.rawValue, flags: [.option, Self.rightOptionBit]) == .t)
+    }
+
+    @Test func rightOptionWithAnotherModifierIsNotChosen() {
+        var capture = HyperKeyCapture(currentHyperKey: .capsLock)
+        _ = capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: [.option, Self.rightOptionBit])
+        _ = capture.handle(type: .flagsChanged, keyCode: 0x38, flags: [.option, .shift, Self.rightOptionBit]) // left shift down
+        _ = capture.handle(type: .flagsChanged, keyCode: 0x38, flags: [.option, Self.rightOptionBit]) // left shift up
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: []) == nil)
+    }
+
+    @Test func releasingRightOptionWhileLeftOptionIsHeldIsNotChosen() {
+        var capture = HyperKeyCapture(currentHyperKey: .capsLock)
+        _ = capture.handle(type: .flagsChanged, keyCode: 0x3A, flags: [.option, Self.leftOptionBit])
+        _ = capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: [.option, Self.leftOptionBit, Self.rightOptionBit])
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: [.option, Self.leftOptionBit]) == nil)
+    }
+
+    @Test func keyboardHyperKeyPressingFourModifiersInARow() {
+        var capture = HyperKeyCapture(currentHyperKey: .capsLock)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightControl.rawValue, flags: [.control, NSEvent.ModifierFlags(rawValue: 0x2000)]) == nil)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightOption.rawValue, flags: [.control, .option]) == nil)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightShift.rawValue, flags: [.control, .option, .shift]) == nil)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.rightCommand.rawValue, flags: [.control, .option, .shift, .command]) == .modifierHyper)
+    }
+
+    @Test func capsLockAndOrdinaryKeys() {
+        var capture = HyperKeyCapture(currentHyperKey: .rightOption)
+        #expect(capture.handle(type: .flagsChanged, keyCode: KeyCode.capsLock.rawValue, flags: [.capsLock]) == .capsLock)
+        #expect(capture.handle(type: .keyDown, keyCode: KeyCode.grave.rawValue, flags: []) == .grave)
+        #expect(capture.handle(type: .keyDown, keyCode: KeyCode.escape.rawValue, flags: []) == nil)
+    }
+
+    @Test func f18IsTheRemappedHyperKey() {
+        var rightOption = HyperKeyCapture(currentHyperKey: .rightOption)
+        #expect(rightOption.handle(type: .keyDown, keyCode: KeyCode.f18.rawValue, flags: []) == .rightOption)
+        var capsLock = HyperKeyCapture(currentHyperKey: .capsLock)
+        #expect(capsLock.handle(type: .keyDown, keyCode: KeyCode.f18.rawValue, flags: []) == .capsLock)
     }
 }
 
@@ -381,6 +469,8 @@ struct ConfigKeyNameTests {
         #expect(KeyCode(configName: "backtick") == .grave)
         #expect(KeyCode(configName: "esc") == .escape)
         #expect(KeyCode(configName: "keyboardHyper") == .modifierHyper)
+        #expect(KeyCode(configName: "rightOption") == .rightOption)
+        #expect(KeyCode(configName: "rightAlt") == .rightOption)
         #expect(KeyCode(configName: "nope") == nil)
     }
 }

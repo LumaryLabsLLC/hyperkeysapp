@@ -22,7 +22,8 @@ import WindowEngine
 /// ```
 public struct ConfigDocument: Codable, Equatable, Sendable {
     public var version: Int?
-    /// "capsLock", "backtick", "tab", "keyboardHyper" (a keyboard that sends ⌃⌥⇧⌘), or any key name.
+    /// "capsLock", "backtick", "tab", "rightOption" (or "rightCommand", "rightControl", "rightShift"),
+    /// "keyboardHyper" (a keyboard that sends ⌃⌥⇧⌘), or any key name.
     public var hyperKey: String?
     /// "none", "small", "medium", "large", "extraLarge".
     public var windowGap: String?

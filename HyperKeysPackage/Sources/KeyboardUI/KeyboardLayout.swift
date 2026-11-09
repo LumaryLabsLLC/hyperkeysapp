@@ -122,7 +122,7 @@ public enum KeyboardLayout {
             KeyDefinition(keyCode: .comma, label: "<\n,", row: 4),
             KeyDefinition(keyCode: .period, label: ">\n.", row: 4),
             KeyDefinition(keyCode: .slash, label: "?\n/", row: 4),
-            KeyDefinition(label: "shift", width: 2.25, row: 4, isRightSide: true),
+            KeyDefinition(keyCode: .rightShift, label: "shift", width: 2.25, row: 4, isRightSide: true),
         ],
     ]
 
@@ -134,8 +134,8 @@ public enum KeyboardLayout {
         KeyDefinition(label: "⌥\noption", width: 1.25, row: 5),
         KeyDefinition(label: "⌘\ncommand", width: 1.5, row: 5),
         KeyDefinition(keyCode: .space, label: "", width: 4.0, row: 5),
-        KeyDefinition(label: "⌘\ncommand", width: 1.5, row: 5, isRightSide: true),
-        KeyDefinition(label: "⌥\noption", width: 1.25, row: 5, isRightSide: true),
+        KeyDefinition(keyCode: .rightCommand, label: "⌘\ncommand", width: 1.5, row: 5, isRightSide: true),
+        KeyDefinition(keyCode: .rightOption, label: "⌥\noption", width: 1.25, row: 5, isRightSide: true),
     ]
 
     public static let arrowUp = KeyDefinition(keyCode: .upArrow, label: "▲", height: 0.5, row: 5)
